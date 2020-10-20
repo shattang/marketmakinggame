@@ -7,5 +7,10 @@ namespace MarketMakingGame.Shared.Messages
     public JoinGameResponse(JoinGameRequest request) : base(request, true)
     {
     }
+
+    public override string ToString()
+    {
+      return $"JoinGameResponse(" + base.ToString() + ")";
+    }
   }
 }

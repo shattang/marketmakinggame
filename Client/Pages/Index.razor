@@ -5,6 +5,7 @@
 @using Microsoft.Extensions.Logging;
 @inject NavigationManager NavigationManager
 @inject ILoggerProvider LoggerProvider
+@inject GameClient GameClient
 @implements IDisposable
 
 <div class="form-group">
@@ -31,48 +32,35 @@
 </ul>
 
 @code {
-  private HubConnection hubConnection;
   private List<string> messages = new List<string>();
   private string userInput;
   private string messageInput;
-  private ILogger logger;
 
   protected override async Task OnInitializedAsync()
   {
-    logger = LoggerProvider.CreateLogger("Index");
-    hubConnection = new HubConnectionBuilder()
-      .WithUrl(NavigationManager.ToAbsoluteUri("gamehub"))
-    .WithAutomaticReconnect(new RandomRetryPolicy())
-    .ConfigureLogging(logging => logging.AddProvider(LoggerProvider))
-    .Build();
+    GameClient.OnIsConnectedChanged += OnIsConnectedChanged;
+    GameClient.OnCreateGameResponse += OnCreateGameResponse;
+    GameClient.OnJoinGameResponse += OnJoinGameResponse;
+    await GameClient.StartAsync();
+  }
 
-    hubConnection.On<CreateGameResponse>("GameCreated", (message) =>
-    {
-      logger.LogInformation("Received Response: {}", message);
-      var encodedMsg = $"CreateGameResponse={message}";
-      messages.Add(encodedMsg);
-      StateHasChanged();
-    });
+  void OnIsConnectedChanged(bool isConnected)
+  {
+    StateHasChanged();
+  }
 
-    hubConnection.Closed += (ex) =>
-    {
-      Console.WriteLine("Closed...");
-      return Task.CompletedTask;
-    };
+  void OnCreateGameResponse(CreateGameResponse message)
+  {
+    var encodedMsg = $"{message}";
+    messages.Add(encodedMsg);
+    StateHasChanged();
+  }
 
-    hubConnection.Reconnected += (ex) =>
-    {
-      Console.WriteLine("Reconnected...");
-      return Task.CompletedTask;
-    };
-
-    hubConnection.Reconnecting += (ex) =>
-    {
-      Console.WriteLine("Reconnecting...");
-      return Task.CompletedTask;
-    };
-
-    await hubConnection.StartAsync();
+  void OnJoinGameResponse(JoinGameResponse message)
+  {
+    var encodedMsg = $"JoinGameResponse={message}";
+    messages.Add(encodedMsg);
+    StateHasChanged();
   }
 
   Task SendCreateGameRequest()
@@ -82,20 +70,13 @@
       GameName = messageInput,
       UserName = userInput
     };
-    return SendRequest(message);
+    return GameClient.SendRequestAsync("CreateGame", message);
   }
 
-  Task SendRequest<T>(T message)
-  {
-    logger.LogInformation("Sending Request: {}", message);
-    return hubConnection.SendAsync("CreateGame", message);
-  }
-
-  public bool IsConnected =>
-    hubConnection.State == HubConnectionState.Connected;
+  public bool IsConnected => GameClient.IsConnected;
 
   public void Dispose()
   {
-    _ = hubConnection.DisposeAsync();
+    GameClient.Dispose();
   }
 }

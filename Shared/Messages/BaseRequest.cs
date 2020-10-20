@@ -10,8 +10,6 @@ namespace MarketMakingGame.Shared.Messages
       RequestId = Guid.NewGuid().ToBase62();
     }
 
-    public abstract string RequestName { get; }
-
     public string RequestId { get; set; }
 
     public override string ToString()

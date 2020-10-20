@@ -21,7 +21,14 @@ namespace MarketMakingGame.Server.Hubs
     {
       _logger.LogInformation("CreateGame {}", request);
       var resp = new CreateGameResponse(request);
-      await Clients.All.SendAsync("GameCreated", resp);
+      await Clients.All.SendAsync("OnCreateGameResponse", resp);
+    }
+
+    public async Task JoinGame(JoinGameRequest request)
+    {
+      _logger.LogInformation("JoinGame {}", request);
+      var resp = new JoinGameResponse(request);
+      await Clients.All.SendAsync("OnJoinGameResponse", resp);
     }
   }
 }

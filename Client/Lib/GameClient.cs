@@ -25,20 +25,19 @@ namespace MarketMakingGame.Client.Lib
       _hubConnection.Closed += OnHubClosed;
       _hubConnection.Reconnecting += OnHubReconnecting;
       _hubConnection.Reconnected += OnHubReconnected;
-      _hubConnection.On<CreateGameResponse>("OnCreateGameResponse", OnCreateGameResponse);
-      _hubConnection.On<JoinGameResponse>("OnJoinGameResponse", OnJoinGameResponse);
-
+      _hubConnection.On<CreateGameResponse>("OnCreateGameResponse", HandleCreateGameResponse);
+      _hubConnection.On<JoinGameResponse>("OnJoinGameResponse", HandleJoinGameResponse);
     }
 
-    public Task StartAsync()
+    public async Task StartAsync()
     {
-      return _hubConnection.StartAsync();
+      await _hubConnection.StartAsync();
     }
 
-    public Task SendRequestAsync(string requestName, BaseRequest message)
+    public Task SendRequestAsync(string methodName, BaseRequest message)
     {
-      _logger.LogInformation("Sending Request: {}", message);
-      return _hubConnection.SendAsync(requestName, message);
+      _logger.LogInformation($"Sending Request: Method={methodName}, Message={message}");
+      return _hubConnection.SendAsync(methodName, message);
     }
 
     public bool IsConnected =>
@@ -46,20 +45,35 @@ namespace MarketMakingGame.Client.Lib
 
     private Task OnHubReconnected(string arg)
     {
-      _logger.LogWarning("GameHub reconnected: Reason={}", arg);
+      _logger.LogWarning($"GameHub reconnected: Reason={arg}");
+      OnIsConnectedChanged(true);
       return Task.CompletedTask;
     }
 
     private Task OnHubReconnecting(Exception arg)
     {
-      _logger.LogWarning("GameHub reconnecting: Type={} Reason={}", arg?.GetType()?.FullName, arg?.Message);
+      _logger.LogWarning($"GameHub reconnecting: Type={arg?.GetType()?.FullName} Reason={arg?.Message}");
+      OnIsConnectedChanged(false);
       return Task.CompletedTask;
     }
 
     private Task OnHubClosed(Exception arg)
     {
-      _logger.LogWarning("GameHub closed: Type={} Reason={}", arg?.GetType()?.FullName, arg?.Message);
+      _logger.LogWarning($"GameHub closed: Type={arg?.GetType()?.FullName} Reason={arg?.Message}");
+      OnIsConnectedChanged(false);
       return Task.CompletedTask;
+    }
+
+    private void HandleCreateGameResponse(CreateGameResponse response)
+    {
+      _logger.LogInformation($"HandleCreateGameResponse Message={response}");
+      OnCreateGameResponse(response);
+    }
+
+    private void HandleJoinGameResponse(JoinGameResponse response)
+    {
+      _logger.LogInformation($"OnJoinGameResponse Message={response}");
+      OnJoinGameResponse(response);
     }
 
     public void Dispose()
@@ -69,5 +83,12 @@ namespace MarketMakingGame.Client.Lib
 
     public event Action<CreateGameResponse> OnCreateGameResponse;
     public event Action<JoinGameResponse> OnJoinGameResponse;
+
+    public event Action<bool> OnIsConnectedChanged;
+
+    public override string ToString()
+    {
+      return _hubConnection.ConnectionId.ToString();
+    }
   }
 }

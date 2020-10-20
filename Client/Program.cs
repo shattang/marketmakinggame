@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using MarketMakingGame.Client.Lib;
 
 namespace MarketMakingGame.Client
 {
@@ -18,7 +19,7 @@ namespace MarketMakingGame.Client
       builder.RootComponents.Add<App>("app");
 
       builder.Services.AddScoped(sp => new HttpClient { BaseAddress = new Uri(builder.HostEnvironment.BaseAddress) });
-
+      builder.Services.AddSingleton<GameClient>();
       await builder.Build().RunAsync();
     }
   }
