@@ -1,12 +1,19 @@
 ﻿@page "/"
+@implements IDisposable
 @using Lib
 @using MarketMakingGame.Shared.Messages
-@using Microsoft.AspNetCore.SignalR.Client
+@using MarketMakingGame.Shared.Lib
 @using Microsoft.Extensions.Logging;
 @inject NavigationManager NavigationManager
 @inject ILoggerProvider LoggerProvider
 @inject GameClient GameClient
-@implements IDisposable
+@inject Blazored.LocalStorage.ILocalStorageService LocalStore
+
+<BSAlert Color="Color.Primary">
+  This is a primary BSAlert — check it out!
+  <img src=@($"https://avatars.dicebear.com/api/gridy/{avatarSeed}.svg") width="100" height="100"
+  @onclick="RefreshAvatar" />
+</BSAlert>
 
 <div class="form-group">
   <label>
@@ -16,11 +23,13 @@
 </div>
 <div class="form-group">
   <label>
-    Message:
+    Game Name or Id:
     <input @bind="messageInput" size="50" />
   </label>
 </div>
-<button @onclick="SendCreateGameRequest" disabled="@(!IsConnected)">Send</button>
+<button @onclick="SendCreateGameRequest" disabled="@(!IsConnected)">Create Game</button>
+<button @onclick="SendJoinGameRequest" disabled="@(!IsConnected)">Join Game</button>
+<button @onclick="RefreshAvatar">Refresh Avatar</button>
 
 <hr>
 
@@ -32,16 +41,41 @@
 </ul>
 
 @code {
+  private const string userIdKey = "MMG.UserId";
+  private const string avatarSeedKey = "MMG.AvatarSeed";
+
   private List<string> messages = new List<string>();
   private string userInput;
   private string messageInput;
+  private string userId, avatarSeed;
 
   protected override async Task OnInitializedAsync()
   {
+    userId = await GetOrCreateKeyInLocalStorage(userIdKey, () => Guid.NewGuid().ToBase62());
+    avatarSeed = await GetOrCreateKeyInLocalStorage(avatarSeedKey, () => Guid.NewGuid().ToBase62());
     GameClient.OnIsConnectedChanged += OnIsConnectedChanged;
     GameClient.OnCreateGameResponse += OnCreateGameResponse;
     GameClient.OnJoinGameResponse += OnJoinGameResponse;
     await GameClient.StartAsync();
+  }
+
+  async Task RefreshAvatar()
+  {
+    await LocalStore.RemoveItemAsync(avatarSeedKey);
+    avatarSeed = await GetOrCreateKeyInLocalStorage(avatarSeedKey, () => Guid.NewGuid().ToBase62());
+    StateHasChanged();
+  }
+
+  async Task<string> GetOrCreateKeyInLocalStorage(string key, Func<string> valueFunc)
+  {
+    var value = await LocalStore.GetItemAsync<string>(key);
+    if (value == null)
+    {
+      value = valueFunc();
+      Console.WriteLine($"Created new key-value Key={key}, Value={value}");
+      await LocalStore.SetItemAsync<string>(key, value);
+    }
+    return value;
   }
 
   void OnIsConnectedChanged(bool isConnected)
@@ -51,15 +85,17 @@
 
   void OnCreateGameResponse(CreateGameResponse message)
   {
-    var encodedMsg = $"{message}";
-    messages.Add(encodedMsg);
-    StateHasChanged();
+    AddToMessageList(message);
   }
 
   void OnJoinGameResponse(JoinGameResponse message)
   {
-    var encodedMsg = $"JoinGameResponse={message}";
-    messages.Add(encodedMsg);
+    AddToMessageList(message);
+  }
+
+  void AddToMessageList<T>(T message)
+  {
+    messages.Add($"{message}");
     StateHasChanged();
   }
 
@@ -71,6 +107,16 @@
       UserName = userInput
     };
     return GameClient.SendRequestAsync("CreateGame", message);
+  }
+
+  Task SendJoinGameRequest()
+  {
+    var message = new JoinGameRequest()
+    {
+      UserName = userInput,
+      GameId = messageInput
+    };
+    return GameClient.SendRequestAsync("JoinGame", message);
   }
 
   public bool IsConnected => GameClient.IsConnected;

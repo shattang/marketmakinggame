@@ -72,7 +72,7 @@ namespace MarketMakingGame.Client.Lib
 
     private void HandleJoinGameResponse(JoinGameResponse response)
     {
-      _logger.LogInformation($"OnJoinGameResponse Message={response}");
+      _logger.LogInformation($"HandleJoinGameResponse Message={response}");
       OnJoinGameResponse(response);
     }
 

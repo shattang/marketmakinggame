@@ -8,6 +8,8 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using MarketMakingGame.Client.Lib;
+using Blazored.LocalStorage;
+using BlazorStrap;
 
 namespace MarketMakingGame.Client
 {
@@ -20,6 +22,8 @@ namespace MarketMakingGame.Client
 
       builder.Services.AddScoped(sp => new HttpClient { BaseAddress = new Uri(builder.HostEnvironment.BaseAddress) });
       builder.Services.AddSingleton<GameClient>();
+      builder.Services.AddBlazoredLocalStorage();
+      builder.Services.AddBootstrapCss();
       await builder.Build().RunAsync();
     }
   }
