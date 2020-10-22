@@ -4,16 +4,38 @@
 @using MarketMakingGame.Shared.Messages
 @using MarketMakingGame.Shared.Lib
 @using Microsoft.Extensions.Logging;
+@using Models
+@using System.ComponentModel.DataAnnotations
+@using ViewModels
 @inject NavigationManager NavigationManager
 @inject ILoggerProvider LoggerProvider
 @inject GameClient GameClient
 @inject Blazored.LocalStorage.ILocalStorageService LocalStore
+@inject IJSRuntime JsRuntime;
 
-<BSAlert Color="Color.Primary">
-  This is a primary BSAlert — check it out!
-  <img src=@($"https://avatars.dicebear.com/api/gridy/{avatarSeed}.svg") width="100" height="100"
-  @onclick="RefreshAvatar" />
-</BSAlert>
+<div class="docs-example">
+  <BSForm Model="@userDataViewModel" ValidateOnInit="true" OnSubmit="@OnValidSubmit">
+    <DataAnnotationsValidator />
+    <BSFormGroup>
+      <BSLabel For="exampleEmail4">Valid input</BSLabel>
+      <BSInput InputType="InputType.Text" Id="exampleEmail4" @bind-Value="@userDataViewModel.UserName" />
+      <BSFormFeedback For="@(() => userDataViewModel.UserName)" ValidMessage="Sweet! that name is available" />
+      <BSButton Color="Color.Primary" ButtonType="ButtonType.Submit">Submit</BSButton>
+    </BSFormGroup>
+  </BSForm>
+
+</div>
+
+<BSImage IsThumbnail="true" src=@($"https://avatars.dicebear.com/api/gridy/{userDataViewModel.AvatarSeed}.svg")
+alt="User Avatar" @onclick="userDataViewModel.RefreshAvatar" width=64 height=64 />
+
+
+@code {
+  void OnValidSubmit()
+  {
+    JsRuntime.InvokeVoidAsync("alert", "submit");
+  }
+}
 
 <div class="form-group">
   <label>
@@ -29,7 +51,7 @@
 </div>
 <button @onclick="SendCreateGameRequest" disabled="@(!IsConnected)">Create Game</button>
 <button @onclick="SendJoinGameRequest" disabled="@(!IsConnected)">Join Game</button>
-<button @onclick="RefreshAvatar">Refresh Avatar</button>
+<button @onclick="userDataViewModel.RefreshAvatar">Refresh Avatar</button>
 
 <hr>
 
@@ -41,41 +63,25 @@
 </ul>
 
 @code {
-  private const string userIdKey = "MMG.UserId";
-  private const string avatarSeedKey = "MMG.AvatarSeed";
-
+  UserDataViewModel userDataViewModel = new UserDataViewModel();
   private List<string> messages = new List<string>();
   private string userInput;
   private string messageInput;
-  private string userId, avatarSeed;
 
   protected override async Task OnInitializedAsync()
   {
-    userId = await GetOrCreateKeyInLocalStorage(userIdKey, () => Guid.NewGuid().ToBase62());
-    avatarSeed = await GetOrCreateKeyInLocalStorage(avatarSeedKey, () => Guid.NewGuid().ToBase62());
+    userDataViewModel.StateChanged += OnUserDataViewModelChanged;
+    await userDataViewModel.InitializeAsync(LocalStore);
     GameClient.OnIsConnectedChanged += OnIsConnectedChanged;
     GameClient.OnCreateGameResponse += OnCreateGameResponse;
     GameClient.OnJoinGameResponse += OnJoinGameResponse;
     await GameClient.StartAsync();
   }
 
-  async Task RefreshAvatar()
+  void OnUserDataViewModelChanged(EventArgs eventArgs)
   {
-    await LocalStore.RemoveItemAsync(avatarSeedKey);
-    avatarSeed = await GetOrCreateKeyInLocalStorage(avatarSeedKey, () => Guid.NewGuid().ToBase62());
+    Console.WriteLine("ViewModel Changed!");
     StateHasChanged();
-  }
-
-  async Task<string> GetOrCreateKeyInLocalStorage(string key, Func<string> valueFunc)
-  {
-    var value = await LocalStore.GetItemAsync<string>(key);
-    if (value == null)
-    {
-      value = valueFunc();
-      Console.WriteLine($"Created new key-value Key={key}, Value={value}");
-      await LocalStore.SetItemAsync<string>(key, value);
-    }
-    return value;
   }
 
   void OnIsConnectedChanged(bool isConnected)

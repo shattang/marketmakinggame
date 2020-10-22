@@ -2,7 +2,7 @@ using System;
 
 namespace MarketMakingGame.Shared.Messages
 {
-  public class BaseResponse
+  public class BaseResponse : BaseMessage
   {
     protected BaseResponse()
     {

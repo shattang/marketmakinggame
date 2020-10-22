@@ -3,7 +3,7 @@ using MarketMakingGame.Shared.Lib;
 
 namespace MarketMakingGame.Shared.Messages
 {
-  public abstract class BaseRequest
+  public abstract class BaseRequest : BaseMessage
   {
     protected BaseRequest()
     {
