@@ -48,8 +48,8 @@ height=32 />
 <p></p>
 <MatDivider/>
 <p></p>
-<MatCard>
-  <MatCardContent>
+
+<BSJumbotron>
     <div class="form-group">
       <label>
         Mesage:
@@ -65,8 +65,7 @@ height=32 />
                     <li>@message</li>
                   }
                 </ul>
-  </MatCardContent>
-</MatCard>
+  </BSJumbotron>
 
 @code {
   private List<string> messages = new List<string>();
@@ -79,6 +78,10 @@ height=32 />
     AppService.GameClient.OnCreateGameResponse += OnCreateGameResponse;
     AppService.GameClient.OnJoinGameResponse += OnJoinGameResponse;
     await AppService.InitializeAsync();
+    if (!AppService.UserDataViewModel.IsDataValid().Success)
+    {
+      OpenUserDataDialog();
+    }
   }
 
   void OnUserDataViewModelChanged(EventArgs eventArgs)
