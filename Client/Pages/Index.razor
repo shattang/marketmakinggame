@@ -6,76 +6,79 @@
 @using Microsoft.Extensions.Logging;
 @using Models
 @using System.ComponentModel.DataAnnotations
-@using ViewModels
-@inject NavigationManager NavigationManager
 @inject ILoggerProvider LoggerProvider
-@inject GameClient GameClient
-@inject Blazored.LocalStorage.ILocalStorageService LocalStore
-@inject IJSRuntime JsRuntime;
+@inject AppService AppService
 
-<div class="docs-example">
-  <BSForm Model="@userDataViewModel" ValidateOnInit="true" OnSubmit="@OnValidSubmit">
-    <DataAnnotationsValidator />
-    <BSFormGroup>
-      <BSLabel For="exampleEmail4">Valid input</BSLabel>
-      <BSInput InputType="InputType.Text" Id="exampleEmail4" @bind-Value="@userDataViewModel.UserName" />
-      <BSFormFeedback For="@(() => userDataViewModel.UserName)" ValidMessage="Sweet! that name is available" />
-      <BSButton Color="Color.Primary" ButtonType="ButtonType.Submit">Submit</BSButton>
-    </BSFormGroup>
-  </BSForm>
+<MatDialog @bind-IsOpen="@userDataDialogOpen" CanBeClosed="false">
+  <MatDialogTitle>Display Name and Avatar</MatDialogTitle>
+  <MatDialogContent>
+      <UserData/>
+  </MatDialogContent>
+  <MatDialogActions> 
+      <MatButton OnClick="@OnUserDataDialogClickOk">OK</MatButton>
+  </MatDialogActions>
+</MatDialog>
 
-</div>
+@code
+{
+    bool userDataDialogOpen = false;
 
-<BSImage IsThumbnail="true" src=@($"https://avatars.dicebear.com/api/gridy/{userDataViewModel.AvatarSeed}.svg")
-alt="User Avatar" @onclick="userDataViewModel.RefreshAvatar" width=64 height=64 />
+    void OpenUserDataDialog()
+    {
+        userDataDialogOpen = true;
+    }
 
-
-@code {
-  void OnValidSubmit()
-  {
-    JsRuntime.InvokeVoidAsync("alert", "submit");
-  }
+    void OnUserDataDialogClickOk()
+    {
+      var res = AppService.UserDataViewModel.IsDataValid();
+      if (!res.Success)
+      {
+        return;
+      }
+      userDataDialogOpen = false;
+    }
 }
 
-<div class="form-group">
-  <label>
-    User:
-    <input @bind="userInput" />
-  </label>
-</div>
-<div class="form-group">
-  <label>
-    Game Name or Id:
-    <input @bind="messageInput" size="50" />
-  </label>
-</div>
-<button @onclick="SendCreateGameRequest" disabled="@(!IsConnected)">Create Game</button>
-<button @onclick="SendJoinGameRequest" disabled="@(!IsConnected)">Join Game</button>
-<button @onclick="userDataViewModel.RefreshAvatar">Refresh Avatar</button>
+<MatButton OnClick="@OpenUserDataDialog">
+  <img src=@($"https://avatars.dicebear.com/api/gridy/{AppService.UserDataViewModel.Data.AvatarSeed}.svg") width=32
+height=32 />
+  @AppService.UserDataViewModel.Data.DisplayName
+</MatButton>
 
-<hr>
-
-<ul id="messagesList">
-  @foreach (var message in messages)
-  {
-    <li>@message</li>
-  }
-</ul>
+<p></p>
+<MatDivider/>
+<p></p>
+<MatCard>
+  <MatCardContent>
+    <div class="form-group">
+      <label>
+        Mesage:
+        <input @bind="messageInput" size="50" />
+      </label>
+    </div>
+    <button @onclick="SendCreateGameRequest" disabled="@(!IsConnected)">Create Game</button>
+    <button @onclick="SendJoinGameRequest" disabled="@(!IsConnected)">Join Game</button>
+    <hr>
+    <ul id="messagesList">
+      @foreach (var message in messages)
+                  {
+                    <li>@message</li>
+                  }
+                </ul>
+  </MatCardContent>
+</MatCard>
 
 @code {
-  UserDataViewModel userDataViewModel = new UserDataViewModel();
   private List<string> messages = new List<string>();
-  private string userInput;
   private string messageInput;
 
   protected override async Task OnInitializedAsync()
   {
-    userDataViewModel.StateChanged += OnUserDataViewModelChanged;
-    await userDataViewModel.InitializeAsync(LocalStore);
-    GameClient.OnIsConnectedChanged += OnIsConnectedChanged;
-    GameClient.OnCreateGameResponse += OnCreateGameResponse;
-    GameClient.OnJoinGameResponse += OnJoinGameResponse;
-    await GameClient.StartAsync();
+    AppService.UserDataViewModel.StateChanged += OnUserDataViewModelChanged;
+    AppService.GameClient.OnIsConnectedChanged += OnIsConnectedChanged;
+    AppService.GameClient.OnCreateGameResponse += OnCreateGameResponse;
+    AppService.GameClient.OnJoinGameResponse += OnJoinGameResponse;
+    await AppService.InitializeAsync();
   }
 
   void OnUserDataViewModelChanged(EventArgs eventArgs)
@@ -109,26 +112,30 @@ alt="User Avatar" @onclick="userDataViewModel.RefreshAvatar" width=64 height=64 
   {
     var message = new CreateGameRequest()
     {
-      GameName = messageInput,
-      UserName = userInput
+      UserName = AppService.UserDataViewModel.Data.DisplayName,
+      GameName = messageInput
     };
-    return GameClient.SendRequestAsync("CreateGame", message);
+    return AppService.GameClient.SendRequestAsync("CreateGame", message);
   }
 
   Task SendJoinGameRequest()
   {
     var message = new JoinGameRequest()
     {
-      UserName = userInput,
+      UserName = AppService.UserDataViewModel.Data.DisplayName,
       GameId = messageInput
     };
-    return GameClient.SendRequestAsync("JoinGame", message);
+    return AppService.GameClient.SendRequestAsync("JoinGame", message);
   }
 
-  public bool IsConnected => GameClient.IsConnected;
+  public bool IsConnected => AppService.GameClient.IsConnected;
 
   public void Dispose()
   {
-    GameClient.Dispose();
+    AppService.UserDataViewModel.StateChanged -= OnUserDataViewModelChanged;
+    AppService.GameClient.OnIsConnectedChanged -= OnIsConnectedChanged;
+    AppService.GameClient.OnCreateGameResponse -= OnCreateGameResponse;
+    AppService.GameClient.OnJoinGameResponse -= OnJoinGameResponse;
+    AppService.Dispose();
   }
 }

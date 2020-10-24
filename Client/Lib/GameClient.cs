@@ -27,11 +27,13 @@ namespace MarketMakingGame.Client.Lib
       _hubConnection.Reconnected += OnHubReconnected;
       _hubConnection.On<CreateGameResponse>("OnCreateGameResponse", HandleCreateGameResponse);
       _hubConnection.On<JoinGameResponse>("OnJoinGameResponse", HandleJoinGameResponse);
+      Console.WriteLine("GameClient Created!");
     }
 
-    public async Task StartAsync()
+    public async Task InitializeAsync()
     {
       await _hubConnection.StartAsync();
+      Console.WriteLine("GameClient Started!");
     }
 
     public Task SendRequestAsync(string methodName, BaseRequest message)
