@@ -1,0 +1,47 @@
+@page "/UserDataEditor"
+@using MarketMakingGame.Client.Lib
+@inject AppService AppService
+
+<style>
+  .avatar-cls: border-radius: 10%;
+  border-style: dotted;
+  border-width: thin;
+</style>
+
+<div class="mat-layout-grid">
+  <div class="mat-layout-grid-inner">
+    <div class="mat-layout-grid-cell-span mat-layout-grid-cell-span-2">
+      <img src=@(AvatarUrl) width=64 height=64 @onclick="AppService.UserDataViewModel.RefreshAvatar" class="avatar-cls"
+title="Click to change Avatar" />
+    </div>
+    <div class="mat-layout-grid-cell mat-layout-grid-cell-span-6">
+      <EditForm Model="AppService.UserDataViewModel">
+        <DataAnnotationsValidator />
+        <MatStringField Label="Display Name" @bind-Value="@AppService.UserDataViewModel.DisplayName" />
+        <ValidationMessage For="@(() => @AppService.UserDataViewModel.DisplayName)" style="font-size: x-small;" />
+      </EditForm>
+    </div>
+
+  </div>
+</div>
+
+@code {
+  string AvatarUrl
+  {
+    get
+    {
+      return $"https://avatars.dicebear.com/api/gridy/{AppService.UserDataViewModel.AvatarSeed}.svg";
+    }
+  }
+
+  protected override async Task OnInitializedAsync()
+  {
+    AppService.UserDataViewModel.StateChanged += OnUserDataViewModelChanged;
+    await AppService.InitializeAsync();
+  }
+
+  void OnUserDataViewModelChanged(EventArgs e)
+  {
+    StateHasChanged();
+  }
+}
