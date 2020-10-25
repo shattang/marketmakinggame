@@ -27,18 +27,18 @@ namespace MarketMakingGame.Client.Lib
       _hubConnection.Reconnected += OnHubReconnected;
       _hubConnection.On<CreateGameResponse>("OnCreateGameResponse", HandleCreateGameResponse);
       _hubConnection.On<JoinGameResponse>("OnJoinGameResponse", HandleJoinGameResponse);
-      Console.WriteLine("GameClient Created!");
+      _logger.LogDebug("GameClient Created");
     }
 
     public async Task InitializeAsync()
     {
       await _hubConnection.StartAsync();
-      Console.WriteLine("GameClient Started!");
+      _logger.LogDebug("GameClient Started!");
     }
 
     public Task SendRequestAsync(string methodName, BaseRequest message)
     {
-      _logger.LogInformation($"Sending Request: Method={methodName}, Message={message}");
+      _logger.LogDebug("Sending Request: Method={0}, Message={1}", methodName, message);
       return _hubConnection.SendAsync(methodName, message);
     }
 
@@ -68,13 +68,13 @@ namespace MarketMakingGame.Client.Lib
 
     private void HandleCreateGameResponse(CreateGameResponse response)
     {
-      _logger.LogInformation($"HandleCreateGameResponse Message={response}");
+      _logger.LogDebug("HandleCreateGameResponse Message={0}", response);
       OnCreateGameResponse(response);
     }
 
     private void HandleJoinGameResponse(JoinGameResponse response)
     {
-      _logger.LogInformation($"HandleJoinGameResponse Message={response}");
+      _logger.LogDebug("HandleJoinGameResponse Message={0}", response);
       OnJoinGameResponse(response);
     }
 

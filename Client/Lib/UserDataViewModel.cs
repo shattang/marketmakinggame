@@ -13,21 +13,34 @@ namespace MarketMakingGame.Client.Lib
   {
     private const String _userDataKey = "MMG.UserData";
     private ILocalStorageService _localStorage;
-    public UserData Data { get; set; }
+    private UserData _data;
+
+    [Required]
+    [MaxLength(20, ErrorMessage = "Max 20 characters")]
+    [MinLength(3, ErrorMessage = "Min 3 characters")]
+    public String DisplayName
+    {
+      get { return _data.DisplayName; }
+      set
+      {
+        _data.DisplayName = value;
+        _ = SaveUserDataAsync();
+      }
+    }
+
+    public String UserId => _data.UserId;
+
+    public String AvatarSeed => _data.AvatarSeed;
 
     public UserDataViewModel(ILocalStorageService localStorage)
     {
-      Data = new UserData();
+      _data = new UserData();
       _localStorage = localStorage;
-      Console.WriteLine("UserDataViewModel Created!");
     }
 
-    public (bool Success, string ErrorMessages) IsDataValid()
+    public (bool Success, string ErrorMessages) CheckValid()
     {
-      var validationResults = new List<ValidationResult>();
-      var b = Validator.TryValidateObject(Data, new ValidationContext(Data, null, null),
-        validationResults, true);
-      return (b, String.Join(Environment.NewLine, validationResults.Select(x => x.ErrorMessage)));
+      return ValidationHelpers.ValidateObject(this);
     }
 
     public async Task InitializeAsync()
@@ -39,20 +52,12 @@ namespace MarketMakingGame.Client.Lib
         {
           AvatarSeed = Guid.NewGuid().ToBase62(),
           UserId = Guid.NewGuid().ToBase62(),
-          DisplayName = ""
+          DisplayName = String.Empty
         };
-        Console.WriteLine($"Created new key-value Key={_userDataKey}, Value={data}");
         await _localStorage.SetItemAsync(_userDataKey, data);
       }
-      Data = data;
-      Data.OnChanged += OnDataChanged;
-      Console.WriteLine("UserDataViewModel Initialized!");
+      _data = data;
       StateChanged(EventArgs.Empty);
-    }
-
-    private void OnDataChanged(EventArgs obj)
-    {
-      _ = SaveUserDataAsync();
     }
 
     public void RefreshAvatar()
@@ -62,17 +67,18 @@ namespace MarketMakingGame.Client.Lib
 
     private async Task RefreshAvatarAsync()
     {
-      if (Data == null)
+      if (_data == null)
         await InitializeAsync();
-      Data.AvatarSeed = Guid.NewGuid().ToBase62();
+      _data.AvatarSeed = Guid.NewGuid().ToBase62();
       await SaveUserDataAsync();
     }
 
-    public async Task SaveUserDataAsync()
+    private async Task SaveUserDataAsync()
     {
-      if (!IsDataValid().Success)
+      var res = CheckValid();
+      if (!res.Success)
         return;
-      await _localStorage.SetItemAsync<UserData>(_userDataKey, Data);
+      await _localStorage.SetItemAsync<UserData>(_userDataKey, _data);
       StateChanged(EventArgs.Empty);
     }
 

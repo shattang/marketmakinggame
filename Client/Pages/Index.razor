@@ -2,58 +2,62 @@
 @implements IDisposable
 @using Lib
 @using MarketMakingGame.Shared.Messages
-@using MarketMakingGame.Shared.Lib
-@using Microsoft.Extensions.Logging;
-@using Models
-@using System.ComponentModel.DataAnnotations
+@using Microsoft.Extensions.Logging
 @inject ILoggerProvider LoggerProvider
 @inject AppService AppService
 
-<MatDialog @bind-IsOpen="@userDataDialogOpen" CanBeClosed="false">
+<MatDialog @bind-IsOpen="@userDataEditorOpen" CanBeClosed="false">
   <MatDialogTitle>Display Name and Avatar</MatDialogTitle>
   <MatDialogContent>
-      <UserData/>
+      <UserDataEditor/>
   </MatDialogContent>
   <MatDialogActions> 
-      <MatButton OnClick="@OnUserDataDialogClickOk">OK</MatButton>
+      <MatButton OnClick="@OnUserDataEditorDialogClickOk">OK</MatButton>
   </MatDialogActions>
 </MatDialog>
 
 @code
 {
-    bool userDataDialogOpen = false;
+    bool userDataEditorOpen = false;
 
-    void OpenUserDataDialog()
+    void OpenUserDataEditorDialog()
     {
-        userDataDialogOpen = true;
+      userDataEditorOpen = true;
     }
 
-    void OnUserDataDialogClickOk()
+    void OnUserDataEditorDialogClickOk()
     {
-      var res = AppService.UserDataViewModel.IsDataValid();
+      var res = AppService.UserDataViewModel.CheckValid();
       if (!res.Success)
       {
         return;
       }
-      userDataDialogOpen = false;
+      userDataEditorOpen = false;
     }
 }
 
-<MatButton OnClick="@OpenUserDataDialog">
-  <img src=@($"https://avatars.dicebear.com/api/gridy/{AppService.UserDataViewModel.Data.AvatarSeed}.svg") width=32
+<MatButton OnClick="@OpenUserDataEditorDialog">
+  <img src=@($"https://avatars.dicebear.com/api/gridy/{AppService.UserDataViewModel.AvatarSeed}.svg") width=32
 height=32 />
-  @AppService.UserDataViewModel.Data.DisplayName
+  @AppService.UserDataViewModel.DisplayName
 </MatButton>
+
 <MatDivider/>
 <p></p>
 
-<use href="svg-cards.svg#heart_1" x="0" y="0"/>
+<div>
+  <img src="svg-cards/king_of_hearts.svg" width=64 height=128/>
+  <img src="svg-cards/back_card_red.svg" width=64 height=128/>
+  <img src="svg-cards/back_card_red.svg" width=64 height=128/>
+  <img src="svg-cards/back_card_red.svg" width=64 height=128 />
+  <img src="svg-cards/back_card_red.svg" width=64 height=128/>
+</div>
 
 <BSJumbotron>
     <div class="form-group">
       <label>
         Mesage:
-        <input @bind="messageInput" size="50" />
+        <input @bind="messageInput"/>
       </label>
     </div>
     <button @onclick="SendCreateGameRequest" disabled="@(!IsConnected)">Create Game</button>
@@ -78,9 +82,9 @@ height=32 />
     AppService.GameClient.OnCreateGameResponse += OnCreateGameResponse;
     AppService.GameClient.OnJoinGameResponse += OnJoinGameResponse;
     await AppService.InitializeAsync();
-    if (!AppService.UserDataViewModel.IsDataValid().Success)
+    if (!AppService.UserDataViewModel.CheckValid().Success)
     {
-      OpenUserDataDialog();
+      OpenUserDataEditorDialog();
     }
   }
 
@@ -115,7 +119,7 @@ height=32 />
   {
     var message = new CreateGameRequest()
     {
-      UserName = AppService.UserDataViewModel.Data.DisplayName,
+      UserName = AppService.UserDataViewModel.DisplayName,
       GameName = messageInput
     };
     return AppService.GameClient.SendRequestAsync("CreateGame", message);
@@ -125,7 +129,7 @@ height=32 />
   {
     var message = new JoinGameRequest()
     {
-      UserName = AppService.UserDataViewModel.Data.DisplayName,
+      UserName = AppService.UserDataViewModel.DisplayName,
       GameId = messageInput
     };
     return AppService.GameClient.SendRequestAsync("JoinGame", message);
