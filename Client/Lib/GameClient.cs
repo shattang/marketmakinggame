@@ -33,6 +33,7 @@ namespace MarketMakingGame.Client.Lib
     public async Task InitializeAsync()
     {
       await _hubConnection.StartAsync();
+      InvokeOnIsConnectedChanged();
       _logger.LogDebug("GameClient Started!");
     }
 
@@ -48,39 +49,47 @@ namespace MarketMakingGame.Client.Lib
     private Task OnHubReconnected(string arg)
     {
       _logger.LogWarning($"GameHub reconnected: Reason={arg}");
-      OnIsConnectedChanged(true);
+      InvokeOnIsConnectedChanged();
       return Task.CompletedTask;
     }
 
     private Task OnHubReconnecting(Exception arg)
     {
       _logger.LogWarning($"GameHub reconnecting: Type={arg?.GetType()?.FullName} Reason={arg?.Message}");
-      OnIsConnectedChanged(false);
+      InvokeOnIsConnectedChanged();
       return Task.CompletedTask;
     }
 
     private Task OnHubClosed(Exception arg)
     {
       _logger.LogWarning($"GameHub closed: Type={arg?.GetType()?.FullName} Reason={arg?.Message}");
-      OnIsConnectedChanged(false);
+      InvokeOnIsConnectedChanged();
       return Task.CompletedTask;
     }
 
     private void HandleCreateGameResponse(CreateGameResponse response)
     {
       _logger.LogDebug("HandleCreateGameResponse Message={0}", response);
-      OnCreateGameResponse(response);
+      if (OnCreateGameResponse != null)
+        OnCreateGameResponse(response);
     }
 
     private void HandleJoinGameResponse(JoinGameResponse response)
     {
       _logger.LogDebug("HandleJoinGameResponse Message={0}", response);
-      OnJoinGameResponse(response);
+      if (OnJoinGameResponse != null)
+        OnJoinGameResponse(response);
     }
 
     public void Dispose()
     {
       _ = _hubConnection.DisposeAsync();
+    }
+
+    void InvokeOnIsConnectedChanged()
+    {
+      if (OnIsConnectedChanged != null)
+        OnIsConnectedChanged(IsConnected);
     }
 
     public event Action<CreateGameResponse> OnCreateGameResponse;

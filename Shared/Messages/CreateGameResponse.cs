@@ -17,7 +17,7 @@ namespace MarketMakingGame.Shared.Messages
 
     public override string ToString()
     {
-      return $"CreateGameResponse(GameId={GameId}, " + base.ToString() + ")";
+      return this.ToStringWithProperties();
     }
   }
 }

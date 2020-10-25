@@ -2,147 +2,62 @@
 @implements IDisposable
 @using Lib
 @using MarketMakingGame.Shared.Messages
-@using Microsoft.Extensions.Logging
-@inject ILoggerProvider LoggerProvider
+@inject NavigationManager NavigationManager
 @inject AppService AppService
 
-<MatDialog @bind-IsOpen="@userDataEditorOpen" CanBeClosed="false">
-  <MatDialogTitle>Display Name and Avatar</MatDialogTitle>
-  <MatDialogContent>
-      <UserDataEditor/>
-  </MatDialogContent>
-  <MatDialogActions> 
-      <MatButton OnClick="@OnUserDataEditorDialogClickOk">OK</MatButton>
-  </MatDialogActions>
-</MatDialog>
-
-@code
-{
-    bool userDataEditorOpen = false;
-
-    void OpenUserDataEditorDialog()
-    {
-      userDataEditorOpen = true;
-    }
-
-    void OnUserDataEditorDialogClickOk()
-    {
-      var res = AppService.UserDataViewModel.CheckValid();
-      if (!res.Success)
-      {
-        return;
-      }
-      userDataEditorOpen = false;
-    }
-}
-
-<MatButton OnClick="@OpenUserDataEditorDialog">
-  <img src=@($"https://avatars.dicebear.com/api/gridy/{AppService.UserDataViewModel.AvatarSeed}.svg") width=32
-height=32 />
-  @AppService.UserDataViewModel.DisplayName
-</MatButton>
-
-<MatDivider/>
+<UserBadge />
+<p></p>
+<MatDivider />
 <p></p>
 
-<div>
-  <img src="svg-cards/king_of_hearts.svg" width=64 height=128/>
-  <img src="svg-cards/back_card_red.svg" width=64 height=128/>
-  <img src="svg-cards/back_card_red.svg" width=64 height=128/>
-  <img src="svg-cards/back_card_red.svg" width=64 height=128 />
-  <img src="svg-cards/back_card_red.svg" width=64 height=128/>
-</div>
-
-<BSJumbotron>
-    <div class="form-group">
-      <label>
-        Mesage:
-        <input @bind="messageInput"/>
-      </label>
-    </div>
-    <button @onclick="SendCreateGameRequest" disabled="@(!IsConnected)">Create Game</button>
-    <button @onclick="SendJoinGameRequest" disabled="@(!IsConnected)">Join Game</button>
-    <hr>
-    <ul id="messagesList">
-      @foreach (var message in messages)
-                  {
-                    <li>@message</li>
-                  }
-                </ul>
-</BSJumbotron>
+@if (ViewType == ViewTypes.Create)
+{
+  <BSJumbotron>
+    <Console />
+  </BSJumbotron>
+}
+else if (ViewType == ViewTypes.Join)
+{
+  <p>Joining Game @JoinGameId ...</p>
+}
+else
+{
+  <p>Loading ...</p>
+}
 
 @code {
-  private List<string> messages = new List<string>();
-  private string messageInput;
+  public enum ViewTypes
+  {
+    Default,
+    Create,
+    Join
+  };
+
+  public ViewTypes ViewType { get; set; } = ViewTypes.Default;
+
+  public String JoinGameId { get; set; } = String.Empty;
 
   protected override async Task OnInitializedAsync()
   {
-    AppService.UserDataViewModel.StateChanged += OnUserDataViewModelChanged;
-    AppService.GameClient.OnIsConnectedChanged += OnIsConnectedChanged;
-    AppService.GameClient.OnCreateGameResponse += OnCreateGameResponse;
-    AppService.GameClient.OnJoinGameResponse += OnJoinGameResponse;
     await AppService.InitializeAsync();
-    if (!AppService.UserDataViewModel.CheckValid().Success)
+
+    if (!AppService.UserDataEditorViewModel.CheckValid().Success)
     {
-      OpenUserDataEditorDialog();
+      AppService.UserDataEditorViewModel.IsUserDataEditorOpen = true;
+    }
+
+    if (NavigationManager.TryGetQueryString<String>("JoinGameId", out var joinGameId))
+    {
+      JoinGameId = joinGameId;
+      ViewType = ViewTypes.Join;
+    }
+    else
+    {
+      ViewType = ViewTypes.Create;
     }
   }
 
-  void OnUserDataViewModelChanged(EventArgs eventArgs)
-  {
-    Console.WriteLine("ViewModel Changed!");
-    StateHasChanged();
-  }
-
-  void OnIsConnectedChanged(bool isConnected)
-  {
-    StateHasChanged();
-  }
-
-  void OnCreateGameResponse(CreateGameResponse message)
-  {
-    AddToMessageList(message);
-  }
-
-  void OnJoinGameResponse(JoinGameResponse message)
-  {
-    AddToMessageList(message);
-  }
-
-  void AddToMessageList<T>(T message)
-  {
-    messages.Add($"{message}");
-    StateHasChanged();
-  }
-
-  Task SendCreateGameRequest()
-  {
-    var message = new CreateGameRequest()
-    {
-      UserName = AppService.UserDataViewModel.DisplayName,
-      GameName = messageInput
-    };
-    return AppService.GameClient.SendRequestAsync("CreateGame", message);
-  }
-
-  Task SendJoinGameRequest()
-  {
-    var message = new JoinGameRequest()
-    {
-      UserName = AppService.UserDataViewModel.DisplayName,
-      GameId = messageInput
-    };
-    return AppService.GameClient.SendRequestAsync("JoinGame", message);
-  }
-
-  public bool IsConnected => AppService.GameClient.IsConnected;
-
   public void Dispose()
-  {
-    AppService.UserDataViewModel.StateChanged -= OnUserDataViewModelChanged;
-    AppService.GameClient.OnIsConnectedChanged -= OnIsConnectedChanged;
-    AppService.GameClient.OnCreateGameResponse -= OnCreateGameResponse;
-    AppService.GameClient.OnJoinGameResponse -= OnJoinGameResponse;
-    AppService.Dispose();
-  }
+  { }
+
 }

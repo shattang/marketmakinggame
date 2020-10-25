@@ -1,4 +1,5 @@
 using System;
+using MarketMakingGame.Shared.Lib;
 
 namespace MarketMakingGame.Shared.Messages
 {
@@ -21,7 +22,7 @@ namespace MarketMakingGame.Shared.Messages
 
     public override string ToString()
     {
-      return $"RequestId={RequestId}, Success={IsSuccess}";
+      return this.ToStringWithProperties();
     }
   }
 }

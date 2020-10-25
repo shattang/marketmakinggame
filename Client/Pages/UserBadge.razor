@@ -1,0 +1,51 @@
+@implements IDisposable
+@using Lib
+@inject AppService AppService
+
+<MatDialog @bind-IsOpen="@AppService.UserDataEditorViewModel.IsUserDataEditorOpen" CanBeClosed="false">
+  <MatDialogTitle>Display Name and Avatar</MatDialogTitle>
+  <MatDialogContent>
+    <UserDataEditor />
+  </MatDialogContent>
+  <MatDialogActions>
+    <MatButton OnClick="@OnUserDataEditorDialogClickOk">OK</MatButton>
+  </MatDialogActions>
+</MatDialog>
+
+<MatButton OnClick="@OpenUserDataEditorDialog">
+  <img src=@($"https://avatars.dicebear.com/api/gridy/{AppService.UserDataEditorViewModel.AvatarSeed}.svg") width=32
+  height=32 />
+  @AppService.UserDataEditorViewModel.DisplayName
+</MatButton>
+
+@code
+{
+  protected override async Task OnInitializedAsync()
+  {
+    AppService.UserDataEditorViewModel.StateChanged += OnUserDataViewModelChanged;
+    await AppService.InitializeAsync();
+  }
+
+  void OnUserDataViewModelChanged(EventArgs e)
+  {
+    StateHasChanged();
+  }
+
+  void OpenUserDataEditorDialog()
+  {
+    AppService.UserDataEditorViewModel.IsUserDataEditorOpen = true;
+  }
+
+  void OnUserDataEditorDialogClickOk()
+  {
+    var res = AppService.UserDataEditorViewModel.CheckValid();
+    if (!res.Success)
+      return;
+    AppService.UserDataEditorViewModel.IsUserDataEditorOpen = false;
+  }
+
+  public void Dispose()
+  {
+    AppService.UserDataEditorViewModel.StateChanged -= OnUserDataViewModelChanged;
+  }
+}

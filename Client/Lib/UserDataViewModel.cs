@@ -9,11 +9,12 @@ using System.Linq;
 
 namespace MarketMakingGame.Client.Lib
 {
-  public class UserDataViewModel
+  public class UserDataEditorViewModel
   {
     private const String _userDataKey = "MMG.UserData";
     private ILocalStorageService _localStorage;
-    private UserData _data;
+    private UserData _data = new UserData();
+    private bool _isUserDataEditorOpen = false;
 
     [Required]
     [MaxLength(20, ErrorMessage = "Max 20 characters")]
@@ -23,8 +24,11 @@ namespace MarketMakingGame.Client.Lib
       get { return _data.DisplayName; }
       set
       {
-        _data.DisplayName = value;
-        _ = SaveUserDataAsync();
+        if (_data.DisplayName != value)
+        {
+          _data.DisplayName = value;
+          _ = SaveUserDataAsync();
+        }
       }
     }
 
@@ -32,7 +36,20 @@ namespace MarketMakingGame.Client.Lib
 
     public String AvatarSeed => _data.AvatarSeed;
 
-    public UserDataViewModel(ILocalStorageService localStorage)
+    public bool IsUserDataEditorOpen
+    {
+      get => _isUserDataEditorOpen;
+      set
+      {
+        if (_isUserDataEditorOpen != value)
+        {
+          _isUserDataEditorOpen = value;
+          InvokeStateChanged(EventArgs.Empty);
+        }
+      }
+    }
+
+    public UserDataEditorViewModel(ILocalStorageService localStorage)
     {
       _data = new UserData();
       _localStorage = localStorage;
@@ -57,7 +74,7 @@ namespace MarketMakingGame.Client.Lib
         await _localStorage.SetItemAsync(_userDataKey, data);
       }
       _data = data;
-      StateChanged(EventArgs.Empty);
+      InvokeStateChanged(EventArgs.Empty);
     }
 
     public void RefreshAvatar()
@@ -79,7 +96,13 @@ namespace MarketMakingGame.Client.Lib
       if (!res.Success)
         return;
       await _localStorage.SetItemAsync<UserData>(_userDataKey, _data);
-      StateChanged(EventArgs.Empty);
+      InvokeStateChanged(EventArgs.Empty);
+    }
+
+    private void InvokeStateChanged(EventArgs eventArgs)
+    {
+      if (StateChanged != null)
+        StateChanged(eventArgs);
     }
 
     public event Action<EventArgs> StateChanged;

@@ -14,7 +14,7 @@ namespace MarketMakingGame.Shared.Messages
 
     public override string ToString()
     {
-      return $"RequestId={RequestId}";
+      return this.ToStringWithProperties();
     }
   }
 }

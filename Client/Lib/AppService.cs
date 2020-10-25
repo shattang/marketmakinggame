@@ -11,31 +11,34 @@ namespace MarketMakingGame.Client.Lib
   {
     private const int STATE_CREATED = 0, STATE_INITIALIZING = 1, STATE_INITIALIZED = 2;
     private volatile int state = STATE_CREATED;
-    public UserDataViewModel UserDataViewModel { get; private set; }
+    private ILogger _logger;
+
+    public UserDataEditorViewModel UserDataEditorViewModel { get; private set; }
     public GameClient GameClient { get; private set; }
 
     public AppService(ILocalStorageService localStorage,
     ILoggerProvider loggerProvider, NavigationManager navigationManager)
     {
-      UserDataViewModel = new UserDataViewModel(localStorage);
+      _logger = loggerProvider.CreateLogger("AppService");
+      UserDataEditorViewModel = new UserDataEditorViewModel(localStorage);
       GameClient = new GameClient(loggerProvider, navigationManager);
-      Console.WriteLine("AppService Created!");
+      _logger.LogInformation("AppService Created!");
     }
 
     public async Task InitializeAsync()
     {
       if (Interlocked.CompareExchange(ref state, STATE_INITIALIZING, STATE_CREATED) != STATE_CREATED)
         return;
-      await UserDataViewModel.InitializeAsync();
+      await UserDataEditorViewModel.InitializeAsync();
       await GameClient.InitializeAsync();
       state = STATE_INITIALIZED;
-      Console.WriteLine("AppService Init!");
+      _logger.LogInformation("AppService Init!");
     }
 
     public void Dispose()
     {
       GameClient.Dispose();
-      Console.WriteLine("AppService Dispose!");
+      _logger.LogInformation("AppService Dispose!");
     }
   }
 }

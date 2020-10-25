@@ -1,4 +1,5 @@
 using System;
+using MarketMakingGame.Shared.Lib;
 
 namespace MarketMakingGame.Shared.Messages
 {
@@ -13,7 +14,7 @@ namespace MarketMakingGame.Shared.Messages
 
     public override string ToString()
     {
-      return $"JoinGameResponse(" + base.ToString() + ")";
+      return this.ToStringWithProperties();
     }
   }
 }
