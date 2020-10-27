@@ -12,6 +12,9 @@ using Blazored.LocalStorage;
 using BlazorStrap;
 using Microsoft.JSInterop;
 using MatBlazor;
+using Blazorise;
+using Blazorise.Bootstrap;
+using Blazorise.Icons.FontAwesome;
 
 namespace MarketMakingGame.Client
 {
@@ -24,18 +27,17 @@ namespace MarketMakingGame.Client
       builder.Services.AddScoped(sp => new HttpClient { BaseAddress = new Uri(builder.HostEnvironment.BaseAddress) });
       builder.Services.AddBlazoredLocalStorage();
       builder.Services.AddBootstrapCss();
-      builder.Services.AddMatToaster(config =>
-      {
-        config.Position = MatToastPosition.BottomRight;
-        config.PreventDuplicates = true;
-        config.NewestOnTop = true;
-        config.ShowCloseButton = true;
-        config.MaximumOpacity = 95;
-        config.VisibleStateDuration = 3000;
-      });
+      builder.Services.AddBlazorise(options => { options.ChangeTextOnKeyPress = true; })
+      .AddBootstrapProviders()
+      .AddFontAwesomeIcons();
 
       builder.Services.AddScoped<AppService>();
-      await builder.Build().RunAsync();
+      var webAssemblyHost = builder.Build();
+      webAssemblyHost.Services
+      .UseBootstrapProviders()
+      .UseFontAwesomeIcons();
+
+      await webAssemblyHost.RunAsync();
     }
   }
 }

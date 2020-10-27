@@ -1,0 +1,115 @@
+@implements IDisposable
+@using Microsoft.Extensions.Logging;
+@using Lib
+@using Models
+@using MarketMakingGame.Shared.Messages
+@inject AppService AppService
+@inject ILoggerProvider LoggerProvider;
+@inject NavigationManager NavigationManager
+
+<div style="background: #673ab7; color: white; font-size: 100%">
+  <MatHeadline6>Create New Game</MatHeadline6>
+</div>
+<MatCard>
+  <MatCardContent>
+    <MatBody2>
+      <Paragraph>
+        <EditForm Model="CreateGameParams">
+          <DataAnnotationsValidator />
+          <MatTextField FullWidth="true" Label="Game Name" @bind-Value="@CreateGameParams.GameName" />
+          <ValidationMessage For="@(() => @CreateGameParams.GameName)" style="font-size: x-small;" />
+        </EditForm>
+      </Paragraph>
+    </MatBody2>
+  </MatCardContent>
+  <MatCardActions>
+    <MatCardActionIcons>
+      <MatButton Raised="true" TrailingIcon="@SubmitButtonIcon" OnClick="@OnSubmit" Disabled="@IsSubmitDisabled"
+HelperText="A descriptive name for the game">@SubmitButtonText
+      </MatButton>
+    </MatCardActionIcons>
+  </MatCardActions>
+</MatCard>
+
+<MatDialog @bind-IsOpen="@IsToastVisible">
+    <MatDialogTitle><MatIcon Icon="warning"></MatIcon>Request Failed</MatDialogTitle>
+    <MatDialogContent>
+        <p>Request Timed Out</p>
+    </MatDialogContent>
+    <MatDialogActions>
+        <MatButton OnClick="@(e => { IsToastVisible = false; })">Close</MatButton>
+    </MatDialogActions>
+</MatDialog>
+
+@code {
+  private ILogger _logger;
+  public CreateGameData CreateGameParams { get; set; } = new CreateGameData();
+  private CreateGameRequest _request = null;
+  public string SubmitButtonText { get; set; } = "Go!";
+  public string SubmitButtonIcon { get; set; } = "checked";
+  public bool IsToastVisible { get; set;} = false;
+
+  public bool IsSubmitDisabled
+  {
+    get
+    {
+      return !ValidationHelpers.ValidateObject(CreateGameParams).Success;
+    }
+  }
+
+  protected override async Task OnInitializedAsync()
+  {
+    _logger = LoggerProvider.CreateLogger("CreateGame");
+    AppService.GameClient.OnCreateGameResponse += OnCreateGameResponse;
+    await AppService.InitializeAsync();
+  }
+
+  void OnCreateGameResponse(CreateGameResponse response)
+  {
+    if (response.RequestId == _request.RequestId)
+    {
+      _logger.LogInformation("Received Response: " + response);
+      _request = null;
+      NavigationManager.NavigateTo("/play?joingameid="+response.RequestId);
+    }
+  }
+
+  public async void OnSubmit()
+  {
+    if (_request != null)
+      return;
+
+    var res = ValidationHelpers.ValidateObject(CreateGameParams);
+    if (!res.Success)
+      return;
+
+    _request = new CreateGameRequest()
+    {
+      GameName = CreateGameParams.GameName,
+      UserAvatar = AppService.UserDataEditorViewModel.AvatarSeed,
+      UserId = AppService.UserDataEditorViewModel.UserId,
+      UserName = AppService.UserDataEditorViewModel.DisplayName
+    };
+
+    SubmitButtonText = "Waiting ...";
+    SubmitButtonIcon = "update";
+    await AppService.GameClient.SendRequestAsync("CreateGame", _request);
+    StateHasChanged();
+
+    await Task.Delay(10000);
+
+    if (_request != null)
+    {
+      IsToastVisible = true;
+      _request = null;
+      SubmitButtonText = "Go!";
+      SubmitButtonIcon = "checked";
+      StateHasChanged();
+    }
+  }
+
+  public void Dispose()
+  {
+    AppService.GameClient.OnCreateGameResponse -= OnCreateGameResponse;
+  }
+}

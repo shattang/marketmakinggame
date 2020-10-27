@@ -13,8 +13,7 @@
 </MatDialog>
 
 <MatButton OnClick="@OpenUserDataEditorDialog">
-  <img src=@($"https://avatars.dicebear.com/api/gridy/{AppService.UserDataEditorViewModel.AvatarSeed}.svg") width=32
-  height=32 />
+  <img src="@AppService.UserDataEditorViewModel.AvatarUrl" width=32 height=32 />
   @AppService.UserDataEditorViewModel.DisplayName
 </MatButton>
 

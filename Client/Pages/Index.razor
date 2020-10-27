@@ -5,16 +5,22 @@
 @inject NavigationManager NavigationManager
 @inject AppService AppService
 
-<UserBadge />
+<div>
+  <UserBadge />
+  <div style="text-align: center; display: inline-block; width: 100%;">
+    <MatHeadline4><img src="poker.png" width=32 height=32 /> The Market Making Game</MatHeadline4>
+  </div>
+</div>
 <p></p>
 <MatDivider />
 <p></p>
 
 @if (ViewType == ViewTypes.Create)
 {
-  <BSJumbotron>
+  <CreateGame />
+  @* <BSJumbotron>
     <Console />
-  </BSJumbotron>
+    </BSJumbotron> *@
 }
 else if (ViewType == ViewTypes.Join)
 {

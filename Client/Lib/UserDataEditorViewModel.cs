@@ -36,6 +36,9 @@ namespace MarketMakingGame.Client.Lib
 
     public String AvatarSeed => _data.AvatarSeed;
 
+    public String AvatarUrl =>
+      $"https://avatars.dicebear.com/api/gridy/{AvatarSeed}.svg";
+
     public bool IsUserDataEditorOpen
     {
       get => _isUserDataEditorOpen;
