@@ -4,15 +4,13 @@ using Blazored.LocalStorage;
 using MarketMakingGame.Client.Models;
 using MarketMakingGame.Shared.Lib;
 using System.ComponentModel.DataAnnotations;
-using System.Collections.Generic;
-using System.Linq;
 
 namespace MarketMakingGame.Client.Lib
 {
-  public class UserDataEditorViewModel
+  public class UserDataEditorViewModel : BaseViewModel
   {
-    private const String _userDataKey = "MMG.UserData";
-    private ILocalStorageService _localStorage;
+    private const String USER_DATA_KEY = "MMG.UserData";
+    private readonly ILocalStorageService _localStorage;
     private UserData _data = new UserData();
     private bool _isUserDataEditorOpen = false;
 
@@ -54,18 +52,18 @@ namespace MarketMakingGame.Client.Lib
 
     public UserDataEditorViewModel(ILocalStorageService localStorage)
     {
-      _data = new UserData();
+      // _data = new UserData();
       _localStorage = localStorage;
     }
 
-    public (bool Success, string ErrorMessages) CheckValid()
+    public override (bool Success, string ErrorMessages) CheckValid()
     {
       return ValidationHelpers.ValidateObject(this);
     }
 
-    public async Task InitializeAsync()
+    public override async Task InitializeAsync()
     {
-      var data = await _localStorage.GetItemAsync<UserData>(_userDataKey);
+      var data = await _localStorage.GetItemAsync<UserData>(USER_DATA_KEY);
       if (data == null)
       {
         data = new UserData()
@@ -74,7 +72,7 @@ namespace MarketMakingGame.Client.Lib
           UserId = Guid.NewGuid().ToBase62(),
           DisplayName = String.Empty
         };
-        await _localStorage.SetItemAsync(_userDataKey, data);
+        await _localStorage.SetItemAsync(USER_DATA_KEY, data);
       }
       _data = data;
       InvokeStateChanged(EventArgs.Empty);
@@ -98,16 +96,8 @@ namespace MarketMakingGame.Client.Lib
       var res = CheckValid();
       if (!res.Success)
         return;
-      await _localStorage.SetItemAsync<UserData>(_userDataKey, _data);
+      await _localStorage.SetItemAsync<UserData>(USER_DATA_KEY, _data);
       InvokeStateChanged(EventArgs.Empty);
     }
-
-    private void InvokeStateChanged(EventArgs eventArgs)
-    {
-      if (StateChanged != null)
-        StateChanged(eventArgs);
-    }
-
-    public event Action<EventArgs> StateChanged;
   }
 }

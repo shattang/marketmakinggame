@@ -7,21 +7,23 @@ using Microsoft.Extensions.Logging;
 
 namespace MarketMakingGame.Client.Lib
 {
-  class AppService : IDisposable
+  public class AppViewModel : IDisposable
   {
     private const int STATE_CREATED = 0, STATE_INITIALIZING = 1, STATE_INITIALIZED = 2;
     private volatile int state = STATE_CREATED;
     private ILogger _logger;
 
-    public UserDataEditorViewModel UserDataEditorViewModel { get; private set; }
-    public GameClient GameClient { get; private set; }
+    public GameClient GameClient { get; }
+    public UserDataEditorViewModel UserDataEditorViewModel { get; }
+    public GameManagerViewModel GameManagerViewModel { get; }
 
-    public AppService(ILocalStorageService localStorage,
+    public AppViewModel(ILocalStorageService localStorage,
     ILoggerProvider loggerProvider, NavigationManager navigationManager)
     {
       _logger = loggerProvider.CreateLogger("AppService");
-      UserDataEditorViewModel = new UserDataEditorViewModel(localStorage);
       GameClient = new GameClient(loggerProvider, navigationManager);
+      UserDataEditorViewModel = new UserDataEditorViewModel(localStorage);
+      GameManagerViewModel = new GameManagerViewModel(this, localStorage);
       _logger.LogInformation("AppService Created!");
     }
 
@@ -29,8 +31,9 @@ namespace MarketMakingGame.Client.Lib
     {
       if (Interlocked.CompareExchange(ref state, STATE_INITIALIZING, STATE_CREATED) != STATE_CREATED)
         return;
-      await UserDataEditorViewModel.InitializeAsync();
       await GameClient.InitializeAsync();
+      await UserDataEditorViewModel.InitializeAsync();
+      await GameManagerViewModel.InitializeAsync();
       state = STATE_INITIALIZED;
       _logger.LogInformation("AppService Init!");
     }

@@ -1,0 +1,59 @@
+@implements IDisposable
+@using Lib
+@inject AppViewModel AppViewModel
+
+<MatCard>
+  <div style="background: #673ab7; color: white; font-size: 100%">
+    <MatHeadline6>Create New Game</MatHeadline6>
+  </div>
+  <MatCardContent>
+    <MatBody2>
+      <Paragraph>
+        <EditForm Model="ViewModel">
+          <DataAnnotationsValidator />
+          <MatTextField FullWidth="true" Label="Game Name" @bind-Value="@ViewModel.GameName" />
+          <ValidationMessage For="@(() => @ViewModel.GameName)" style="font-size: x-small;" />
+        </EditForm>
+      </Paragraph>
+    </MatBody2>
+  </MatCardContent>
+  <MatCardActions>
+    <MatCardActionIcons>
+      <MatButton Raised="true" TrailingIcon="@ViewModel.SubmitButtonIcon" OnClick="@ViewModel.OnSubmitButtonClicked"
+Disabled="@ViewModel.IsSubmitButtonDisabled">@ViewModel.SubmitButtonText
+      </MatButton>
+    </MatCardActionIcons>
+  </MatCardActions>
+</MatCard>
+
+<MatDialog @bind-IsOpen="@ViewModel.IsCreateGameFailedDialogVisible">
+  <MatDialogTitle>
+    <MatIcon Icon="warning"></MatIcon>Request Failed
+  </MatDialogTitle>
+  <MatDialogContent>
+    <p>Request Timed Out</p>
+  </MatDialogContent>
+  <MatDialogActions>
+    <MatButton OnClick="@(e => { ViewModel.IsCreateGameFailedDialogVisible = false; })">Close</MatButton>
+  </MatDialogActions>
+</MatDialog>
+
+@code {
+  GameManagerViewModel ViewModel => AppViewModel.GameManagerViewModel;
+
+  protected override async Task OnInitializedAsync()
+  {
+    AppViewModel.GameManagerViewModel.StateChanged += OnViewModelChanged;
+    await AppViewModel.InitializeAsync();
+  }
+
+  void OnViewModelChanged(EventArgs args)
+  {
+    StateHasChanged();
+  }
+
+  public void Dispose()
+  {
+    AppViewModel.GameManagerViewModel.StateChanged -= OnViewModelChanged;
+  }
+}

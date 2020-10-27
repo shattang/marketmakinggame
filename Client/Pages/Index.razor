@@ -3,7 +3,7 @@
 @using Lib
 @using MarketMakingGame.Shared.Messages
 @inject NavigationManager NavigationManager
-@inject AppService AppService
+@inject AppViewModel AppViewModel
 
 <div>
   <UserBadge />
@@ -17,7 +17,7 @@
 
 @if (ViewType == ViewTypes.Create)
 {
-  <CreateGame />
+  <GameManager />
 }
 else
 {
@@ -37,11 +37,11 @@ else
 
   protected override async Task OnInitializedAsync()
   {
-    await AppService.InitializeAsync();
+    await AppViewModel.InitializeAsync();
 
-    if (!AppService.UserDataEditorViewModel.CheckValid().Success)
+    if (!AppViewModel.UserDataEditorViewModel.CheckValid().Success)
     {
-      AppService.UserDataEditorViewModel.IsUserDataEditorOpen = true;
+      AppViewModel.UserDataEditorViewModel.IsUserDataEditorOpen = true;
     }
 
     ViewType = ViewTypes.Create;

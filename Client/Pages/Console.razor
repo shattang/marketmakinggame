@@ -2,7 +2,7 @@
 @implements IDisposable
 @using Lib
 @using MarketMakingGame.Shared.Messages
-@inject AppService AppService
+@inject AppViewModel AppViewModel
 
 <div class="form-group">
   <label>
@@ -25,10 +25,10 @@
 
   protected override async Task OnInitializedAsync()
   {
-    AppService.GameClient.OnIsConnectedChanged += OnIsConnectedChanged;
-    AppService.GameClient.OnCreateGameResponse += OnCreateGameResponse;
-    AppService.GameClient.OnJoinGameResponse += OnJoinGameResponse;
-    await AppService.InitializeAsync();
+    AppViewModel.GameClient.OnIsConnectedChanged += OnIsConnectedChanged;
+    AppViewModel.GameClient.OnCreateGameResponse += OnCreateGameResponse;
+    AppViewModel.GameClient.OnJoinGameResponse += OnJoinGameResponse;
+    await AppViewModel.InitializeAsync();
   }
 
   void OnIsConnectedChanged(bool isConnected)
@@ -56,32 +56,32 @@
   {
     var message = new CreateGameRequest()
     {
-      UserName = AppService.UserDataEditorViewModel.DisplayName,
-      UserId = AppService.UserDataEditorViewModel.UserId,
-      UserAvatar = AppService.UserDataEditorViewModel.AvatarSeed,
+      UserName = AppViewModel.UserDataEditorViewModel.DisplayName,
+      UserId = AppViewModel.UserDataEditorViewModel.UserId,
+      UserAvatar = AppViewModel.UserDataEditorViewModel.AvatarSeed,
       GameName = messageInput
     };
-    return AppService.GameClient.SendRequestAsync("CreateGame", message);
+    return AppViewModel.GameClient.SendRequestAsync("CreateGame", message);
   }
 
   Task SendJoinGameRequest()
   {
     var message = new JoinGameRequest()
     {
-      UserName = AppService.UserDataEditorViewModel.DisplayName,
-      UserId = AppService.UserDataEditorViewModel.UserId,
-      UserAvatar = AppService.UserDataEditorViewModel.AvatarSeed,
+      UserName = AppViewModel.UserDataEditorViewModel.DisplayName,
+      UserId = AppViewModel.UserDataEditorViewModel.UserId,
+      UserAvatar = AppViewModel.UserDataEditorViewModel.AvatarSeed,
       GameId = messageInput
     };
-    return AppService.GameClient.SendRequestAsync("JoinGame", message);
+    return AppViewModel.GameClient.SendRequestAsync("JoinGame", message);
   }
 
-  public bool IsConnected => AppService.GameClient.IsConnected;
+  public bool IsConnected => AppViewModel.GameClient.IsConnected;
 
   public void Dispose()
   {
-    AppService.GameClient.OnIsConnectedChanged -= OnIsConnectedChanged;
-    AppService.GameClient.OnCreateGameResponse -= OnCreateGameResponse;
-    AppService.GameClient.OnJoinGameResponse -= OnJoinGameResponse;
+    AppViewModel.GameClient.OnIsConnectedChanged -= OnIsConnectedChanged;
+    AppViewModel.GameClient.OnCreateGameResponse -= OnCreateGameResponse;
+    AppViewModel.GameClient.OnJoinGameResponse -= OnJoinGameResponse;
   }
 }

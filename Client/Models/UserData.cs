@@ -1,5 +1,6 @@
 using System;
-using System.ComponentModel.DataAnnotations;
+using System.Collections.Generic;
+using MarketMakingGame.Shared.Lib;
 
 namespace MarketMakingGame.Client.Models
 {
@@ -13,7 +14,7 @@ namespace MarketMakingGame.Client.Models
 
     public override string ToString()
     {
-      return $"UserData(UserId={UserId}, DisplayName={DisplayName}, AvatarSeed={AvatarSeed})";
+      return this.ToStringWithProperties();
     }
   }
 }
