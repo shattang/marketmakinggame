@@ -18,13 +18,6 @@
 @if (ViewType == ViewTypes.Create)
 {
   <CreateGame />
-  @* <BSJumbotron>
-    <Console />
-    </BSJumbotron> *@
-}
-else if (ViewType == ViewTypes.Join)
-{
-  <p>Joining Game @JoinGameId ...</p>
 }
 else
 {
@@ -35,8 +28,7 @@ else
   public enum ViewTypes
   {
     Default,
-    Create,
-    Join
+    Create
   };
 
   public ViewTypes ViewType { get; set; } = ViewTypes.Default;
@@ -52,15 +44,7 @@ else
       AppService.UserDataEditorViewModel.IsUserDataEditorOpen = true;
     }
 
-    if (NavigationManager.TryGetQueryString<String>("JoinGameId", out var joinGameId))
-    {
-      JoinGameId = joinGameId;
-      ViewType = ViewTypes.Join;
-    }
-    else
-    {
-      ViewType = ViewTypes.Create;
-    }
+    ViewType = ViewTypes.Create;
   }
 
   public void Dispose()

@@ -70,7 +70,7 @@ HelperText="A descriptive name for the game">@SubmitButtonText
     {
       _logger.LogInformation("Received Response: " + response);
       _request = null;
-      NavigationManager.NavigateTo("/play?joingameid="+response.RequestId);
+      NavigationManager.NavigateTo("/console?joingameid="+response.RequestId);
     }
   }
 
