@@ -37,17 +37,27 @@ namespace MarketMakingGame.Client.Lib
       _logger.LogDebug("GameClient Started!");
     }
 
-    public Task SendRequestAsync(string methodName, BaseRequest message)
+    public Task SendRequestAsync(string methodName, BaseRequest request)
     {
-      _logger.LogDebug("Sending Request: Method={0}, Message={1}", methodName, message);
+      _logger.LogInformation("Sending Request: Method={0}, Request={1}", methodName, request);
+      return _hubConnection.SendAsync(methodName, request);
+    }
+
+    public async Task<RESP> InvokeRequestAsync<RESP>(string methodName, BaseRequest request)
+    where RESP : BaseResponse, new()
+    {
+      _logger.LogInformation("Invoking Request: Method={0}, Request={1}", methodName, request);
       try
       {
-        return _hubConnection.SendAsync(methodName, message);
+        return await _hubConnection.InvokeAsync<RESP>(methodName, request);
       }
       catch (Exception ex)
       {
-        _logger.LogError(ex, "Error sending request");
-        return Task.FromException(ex);
+        _logger.LogError(ex, $"{nameof(InvokeRequestAsync)} failed");
+        var resp = new RESP();
+        resp.ErrorMessage = ex.Message;
+        resp.IsSuccess = false;
+        return resp;
       }
     }
 

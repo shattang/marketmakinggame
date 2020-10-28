@@ -2,6 +2,18 @@
 @using Lib
 @inject MainViewModel MainViewModel
 
+<MatDialog @bind-IsOpen="@ViewModel.IsCreateGameFailedDialogVisible">
+  <MatDialogTitle>
+    <MatIcon Icon="warning"></MatIcon>&nbsp;Request Failed
+  </MatDialogTitle>
+  <MatDialogContent>
+    <p>@ViewModel.CreateGameFailedDialogMessage</p>
+  </MatDialogContent>
+  <MatDialogActions>
+    <MatButton OnClick="@(e => { ViewModel.IsCreateGameFailedDialogVisible = false; })">Close</MatButton>
+  </MatDialogActions>
+</MatDialog>
+
 <MatCard>
   <div style="background: #673ab7; color: white; font-size: 100%">
     <MatHeadline6>Create New Game</MatHeadline6>
@@ -26,19 +38,31 @@ Disabled="@ViewModel.IsSubmitButtonDisabled">@ViewModel.SubmitButtonText
   </MatCardActions>
 </MatCard>
 
-<MatDialog @bind-IsOpen="@ViewModel.IsCreateGameFailedDialogVisible">
-  <MatDialogTitle>
-    <MatIcon Icon="warning"></MatIcon>Request Failed
-  </MatDialogTitle>
-  <MatDialogContent>
-    <p>Request Timed Out</p>
-  </MatDialogContent>
-  <MatDialogActions>
-    <MatButton OnClick="@(e => { ViewModel.IsCreateGameFailedDialogVisible = false; })">Close</MatButton>
-  </MatDialogActions>
-</MatDialog>
+@if (ViewModel.CreatedGameNames != null && ViewModel.CreatedGameNames.Count > 0)
+{
+  <p></p>
+  <p></p>
+  <MatCard>
+    <div style="background: #673ab7; color: white; font-size: 100%">
+      <MatHeadline6>Join Existing Game</MatHeadline6>
+    </div>
+    <MatCardContent>
+      <MatBody2>
+        <Paragraph>
+          <p></p>
+          @foreach (var item in ViewModel.CreatedGameNames)
+                            {
+                              <p>
+                                <MatButton style="width: 100%;" Outlined="true">@item</MatButton>
+                              </p>
+                            }
+                          </Paragraph>
+                        </MatBody2>
+                      </MatCardContent>
+                    </MatCard>
+}
 
-@code {
+                    @code {
   GameManagerViewModel ViewModel => MainViewModel.GameManagerViewModel;
 
   protected override async Task OnInitializedAsync()

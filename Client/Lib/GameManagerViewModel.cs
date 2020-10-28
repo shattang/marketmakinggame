@@ -13,6 +13,7 @@ namespace MarketMakingGame.Client.Lib
     private const int REQUEST_DELAY_MILLIS = 10000;
     private const string DEFAULT_SUBMIT_BUTTON_TEXT = "Go!";
     private const string DEFAULT_SUBMIT_BUTTON_ICON = "checked";
+    private const string DEFAULT_REQUEST_FAILED_MESSAGE = "Request timed out";
     private readonly MainViewModel MainViewModel;
     private readonly ILocalStorageService _localStorage;
 
@@ -21,10 +22,13 @@ namespace MarketMakingGame.Client.Lib
     [MaxLength(20, ErrorMessage = "Max 20 characters.")]
     public String GameName { get; set; }
     private CreateGameRequest _request = null;
+    public List<string> CreatedGameIds { get; set; }
+    public List<string> CreatedGameNames { get; set; }
     public string SubmitButtonText { get; set; } = DEFAULT_SUBMIT_BUTTON_TEXT;
     public string SubmitButtonIcon { get; set; } = DEFAULT_SUBMIT_BUTTON_ICON;
     public bool IsCreateGameFailedDialogVisible { get; set; } = false;
-    public bool IsSubmitButtonDisabled => !CheckValid().Success;
+    public string CreateGameFailedDialogMessage { get; set; } = DEFAULT_REQUEST_FAILED_MESSAGE;
+    public bool IsSubmitButtonDisabled => MainViewModel.GameClient.IsConnected && !CheckValid().Success;
 
     public GameManagerViewModel(MainViewModel mainView, ILocalStorageService localStorage)
     {
@@ -40,11 +44,22 @@ namespace MarketMakingGame.Client.Lib
     public override async Task InitializeAsync()
     {
       MainViewModel.GameClient.OnCreateGameResponse += OnCreateGameResponse;
-      var createdGames = await _localStorage.GetItemAsync<List<string>>(CREATED_GAMES_KEY);
-      if (createdGames == null)
+      CreatedGameIds = await _localStorage.GetItemAsync<List<string>>(CREATED_GAMES_KEY);
+      if (CreatedGameIds == null)
       {
-        createdGames = new List<string>();
-        await _localStorage.SetItemAsync(CREATED_GAMES_KEY, createdGames);
+        CreatedGameIds = new List<string>();
+        CreatedGameNames = new List<string>();
+        await _localStorage.SetItemAsync(CREATED_GAMES_KEY, CreatedGameIds);
+      }
+      else
+      {
+        var req = new GetGameInfoRequest()
+        {
+          GameIds = CreatedGameIds
+        };
+
+        var resp = await MainViewModel.GameClient.InvokeRequestAsync<GetGameInfoResponse>("GetGameInfo", req);
+        CreatedGameNames = resp.IsSuccess ? resp.GameNames : new List<string>();
       }
       InvokeStateChanged(EventArgs.Empty);
     }
@@ -53,11 +68,14 @@ namespace MarketMakingGame.Client.Lib
     {
       if (_request != null && response.RequestId == _request.RequestId)
       {
-        Console.WriteLine("Received Response: " + response);
+        var req = _request;
         ResetRequest();
 
         if (response.IsSuccess)
         {
+          CreatedGameIds.Add(response.GameId);
+          CreatedGameNames.Add(req.GameName);
+          _ = _localStorage.SetItemAsync(CREATED_GAMES_KEY, CreatedGameIds);
           MainViewModel.ShowGamePlayer(response);
         }
         else
@@ -86,14 +104,26 @@ namespace MarketMakingGame.Client.Lib
 
       SubmitButtonText = "Waiting ...";
       SubmitButtonIcon = "update";
-      await MainViewModel.GameClient.SendRequestAsync("CreateGame", _request);
       InvokeStateChanged(EventArgs.Empty);
 
-      await Task.Delay(REQUEST_DELAY_MILLIS);
+      try
+      {
+        await MainViewModel.GameClient.SendRequestAsync("CreateGame", _request);
+      }
+      catch (Exception ex)
+      {
+        ResetRequest();
+        CreateGameFailedDialogMessage = $"Request Failed: {ex.Message}";
+        IsCreateGameFailedDialogVisible = true;
+        InvokeStateChanged(EventArgs.Empty);
+        return;
+      }
 
+      await Task.Delay(REQUEST_DELAY_MILLIS);
       if (_request != null)
       {
         ResetRequest();
+        CreateGameFailedDialogMessage = DEFAULT_REQUEST_FAILED_MESSAGE;
         IsCreateGameFailedDialogVisible = true;
         InvokeStateChanged(EventArgs.Empty);
       }
