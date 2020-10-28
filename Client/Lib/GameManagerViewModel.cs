@@ -1,6 +1,5 @@
 using System;
 using System.Threading.Tasks;
-using MarketMakingGame.Shared.Lib;
 using System.ComponentModel.DataAnnotations;
 using Blazored.LocalStorage;
 using System.Collections.Generic;
@@ -14,7 +13,7 @@ namespace MarketMakingGame.Client.Lib
     private const int REQUEST_DELAY_MILLIS = 10000;
     private const string DEFAULT_SUBMIT_BUTTON_TEXT = "Go!";
     private const string DEFAULT_SUBMIT_BUTTON_ICON = "checked";
-    private readonly AppViewModel AppService;
+    private readonly MainViewModel MainViewModel;
     private readonly ILocalStorageService _localStorage;
 
     [Required]
@@ -27,9 +26,9 @@ namespace MarketMakingGame.Client.Lib
     public bool IsCreateGameFailedDialogVisible { get; set; } = false;
     public bool IsSubmitButtonDisabled => !CheckValid().Success;
 
-    public GameManagerViewModel(AppViewModel appService, ILocalStorageService localStorage)
+    public GameManagerViewModel(MainViewModel mainView, ILocalStorageService localStorage)
     {
-      this.AppService = appService;
+      this.MainViewModel = mainView;
       this._localStorage = localStorage;
     }
 
@@ -40,7 +39,7 @@ namespace MarketMakingGame.Client.Lib
 
     public override async Task InitializeAsync()
     {
-      AppService.GameClient.OnCreateGameResponse += OnCreateGameResponse;
+      MainViewModel.GameClient.OnCreateGameResponse += OnCreateGameResponse;
       var createdGames = await _localStorage.GetItemAsync<List<string>>(CREATED_GAMES_KEY);
       if (createdGames == null)
       {
@@ -52,11 +51,20 @@ namespace MarketMakingGame.Client.Lib
 
     void OnCreateGameResponse(CreateGameResponse response)
     {
-      if (response.RequestId == _request.RequestId)
+      if (_request != null && response.RequestId == _request.RequestId)
       {
         Console.WriteLine("Received Response: " + response);
-        _request = null;
-        //NavigationManager.NavigateTo("/console?joingameid=" + response.RequestId);
+        ResetRequest();
+
+        if (response.IsSuccess)
+        {
+          MainViewModel.ShowGamePlayer(response);
+        }
+        else
+        {
+          IsCreateGameFailedDialogVisible = true;
+          InvokeStateChanged(EventArgs.Empty);
+        }
       }
     }
 
@@ -71,26 +79,36 @@ namespace MarketMakingGame.Client.Lib
       _request = new CreateGameRequest()
       {
         GameName = GameName,
-        UserAvatar = AppService.UserDataEditorViewModel.AvatarSeed,
-        UserId = AppService.UserDataEditorViewModel.UserId,
-        UserName = AppService.UserDataEditorViewModel.DisplayName
+        UserAvatar = MainViewModel.UserDataEditorViewModel.AvatarSeed,
+        UserId = MainViewModel.UserDataEditorViewModel.UserId,
+        UserName = MainViewModel.UserDataEditorViewModel.DisplayName
       };
 
       SubmitButtonText = "Waiting ...";
       SubmitButtonIcon = "update";
-      await AppService.GameClient.SendRequestAsync("CreateGame", _request);
+      await MainViewModel.GameClient.SendRequestAsync("CreateGame", _request);
       InvokeStateChanged(EventArgs.Empty);
 
       await Task.Delay(REQUEST_DELAY_MILLIS);
 
       if (_request != null)
       {
+        ResetRequest();
         IsCreateGameFailedDialogVisible = true;
-        _request = null;
-        SubmitButtonText = DEFAULT_SUBMIT_BUTTON_TEXT;
-        SubmitButtonIcon = DEFAULT_SUBMIT_BUTTON_ICON;
         InvokeStateChanged(EventArgs.Empty);
       }
+    }
+
+    private void ResetRequest()
+    {
+      _request = null;
+      SubmitButtonText = DEFAULT_SUBMIT_BUTTON_TEXT;
+      SubmitButtonIcon = DEFAULT_SUBMIT_BUTTON_ICON;
+    }
+
+    public override void Dispose()
+    {
+      MainViewModel.GameClient.OnCreateGameResponse -= OnCreateGameResponse;
     }
   }
 }

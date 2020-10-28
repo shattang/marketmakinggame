@@ -1,8 +1,8 @@
 @implements IDisposable
 @using Lib
-@inject AppViewModel AppViewModel
+@inject MainViewModel MainViewModel
 
-<MatDialog @bind-IsOpen="@AppViewModel.UserDataEditorViewModel.IsUserDataEditorOpen" CanBeClosed="false">
+<MatDialog @bind-IsOpen="@MainViewModel.UserDataEditorViewModel.IsUserDataEditorOpen" CanBeClosed="false">
   <MatDialogTitle>Display Name and Avatar</MatDialogTitle>
   <MatDialogContent>
     <UserDataEditor />
@@ -13,16 +13,16 @@
 </MatDialog>
 
 <MatButton OnClick="@OpenUserDataEditorDialog">
-  <img src="@AppViewModel.UserDataEditorViewModel.AvatarUrl" width=32 height=32 />
-  @AppViewModel.UserDataEditorViewModel.DisplayName
+  <img src="@MainViewModel.UserDataEditorViewModel.AvatarUrl" width=32 height=32 />
+  @MainViewModel.UserDataEditorViewModel.DisplayName
 </MatButton>
 
 @code
 {
   protected override async Task OnInitializedAsync()
   {
-    AppViewModel.UserDataEditorViewModel.StateChanged += OnUserDataViewModelChanged;
-    await AppViewModel.InitializeAsync();
+    MainViewModel.UserDataEditorViewModel.StateChanged += OnUserDataViewModelChanged;
+    await MainViewModel.InitializeAsync();
   }
 
   void OnUserDataViewModelChanged(EventArgs e)
@@ -32,19 +32,19 @@
 
   void OpenUserDataEditorDialog()
   {
-    AppViewModel.UserDataEditorViewModel.IsUserDataEditorOpen = true;
+    MainViewModel.UserDataEditorViewModel.IsUserDataEditorOpen = true;
   }
 
   void OnUserDataEditorDialogClickOk()
   {
-    var res = AppViewModel.UserDataEditorViewModel.CheckValid();
+    var res = MainViewModel.UserDataEditorViewModel.CheckValid();
     if (!res.Success)
       return;
-    AppViewModel.UserDataEditorViewModel.IsUserDataEditorOpen = false;
+    MainViewModel.UserDataEditorViewModel.IsUserDataEditorOpen = false;
   }
 
   public void Dispose()
   {
-    AppViewModel.UserDataEditorViewModel.StateChanged -= OnUserDataViewModelChanged;
+    MainViewModel.UserDataEditorViewModel.StateChanged -= OnUserDataViewModelChanged;
   }
 }

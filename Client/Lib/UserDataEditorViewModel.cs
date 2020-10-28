@@ -52,7 +52,6 @@ namespace MarketMakingGame.Client.Lib
 
     public UserDataEditorViewModel(ILocalStorageService localStorage)
     {
-      // _data = new UserData();
       _localStorage = localStorage;
     }
 
@@ -98,6 +97,10 @@ namespace MarketMakingGame.Client.Lib
         return;
       await _localStorage.SetItemAsync<UserData>(USER_DATA_KEY, _data);
       InvokeStateChanged(EventArgs.Empty);
+    }
+
+    public override void Dispose()
+    {
     }
   }
 }

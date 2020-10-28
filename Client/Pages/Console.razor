@@ -2,7 +2,7 @@
 @implements IDisposable
 @using Lib
 @using MarketMakingGame.Shared.Messages
-@inject AppViewModel AppViewModel
+@inject MainViewModel MainViewModel
 
 <div class="form-group">
   <label>
@@ -25,10 +25,10 @@
 
   protected override async Task OnInitializedAsync()
   {
-    AppViewModel.GameClient.OnIsConnectedChanged += OnIsConnectedChanged;
-    AppViewModel.GameClient.OnCreateGameResponse += OnCreateGameResponse;
-    AppViewModel.GameClient.OnJoinGameResponse += OnJoinGameResponse;
-    await AppViewModel.InitializeAsync();
+    MainViewModel.GameClient.OnIsConnectedChanged += OnIsConnectedChanged;
+    MainViewModel.GameClient.OnCreateGameResponse += OnCreateGameResponse;
+    MainViewModel.GameClient.OnJoinGameResponse += OnJoinGameResponse;
+    await MainViewModel.InitializeAsync();
   }
 
   void OnIsConnectedChanged(bool isConnected)
@@ -56,32 +56,32 @@
   {
     var message = new CreateGameRequest()
     {
-      UserName = AppViewModel.UserDataEditorViewModel.DisplayName,
-      UserId = AppViewModel.UserDataEditorViewModel.UserId,
-      UserAvatar = AppViewModel.UserDataEditorViewModel.AvatarSeed,
+      UserName = MainViewModel.UserDataEditorViewModel.DisplayName,
+      UserId = MainViewModel.UserDataEditorViewModel.UserId,
+      UserAvatar = MainViewModel.UserDataEditorViewModel.AvatarSeed,
       GameName = messageInput
     };
-    return AppViewModel.GameClient.SendRequestAsync("CreateGame", message);
+    return MainViewModel.GameClient.SendRequestAsync("CreateGame", message);
   }
 
   Task SendJoinGameRequest()
   {
     var message = new JoinGameRequest()
     {
-      UserName = AppViewModel.UserDataEditorViewModel.DisplayName,
-      UserId = AppViewModel.UserDataEditorViewModel.UserId,
-      UserAvatar = AppViewModel.UserDataEditorViewModel.AvatarSeed,
+      UserName = MainViewModel.UserDataEditorViewModel.DisplayName,
+      UserId = MainViewModel.UserDataEditorViewModel.UserId,
+      UserAvatar = MainViewModel.UserDataEditorViewModel.AvatarSeed,
       GameId = messageInput
     };
-    return AppViewModel.GameClient.SendRequestAsync("JoinGame", message);
+    return MainViewModel.GameClient.SendRequestAsync("JoinGame", message);
   }
 
-  public bool IsConnected => AppViewModel.GameClient.IsConnected;
+  public bool IsConnected => MainViewModel.GameClient.IsConnected;
 
   public void Dispose()
   {
-    AppViewModel.GameClient.OnIsConnectedChanged -= OnIsConnectedChanged;
-    AppViewModel.GameClient.OnCreateGameResponse -= OnCreateGameResponse;
-    AppViewModel.GameClient.OnJoinGameResponse -= OnJoinGameResponse;
+    MainViewModel.GameClient.OnIsConnectedChanged -= OnIsConnectedChanged;
+    MainViewModel.GameClient.OnCreateGameResponse -= OnCreateGameResponse;
+    MainViewModel.GameClient.OnJoinGameResponse -= OnJoinGameResponse;
   }
 }

@@ -40,7 +40,15 @@ namespace MarketMakingGame.Client.Lib
     public Task SendRequestAsync(string methodName, BaseRequest message)
     {
       _logger.LogDebug("Sending Request: Method={0}, Message={1}", methodName, message);
-      return _hubConnection.SendAsync(methodName, message);
+      try
+      {
+        return _hubConnection.SendAsync(methodName, message);
+      }
+      catch (Exception ex)
+      {
+        _logger.LogError(ex, "Error sending request");
+        return Task.FromException(ex);
+      }
     }
 
     public bool IsConnected =>

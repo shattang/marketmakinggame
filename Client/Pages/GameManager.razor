@@ -1,6 +1,6 @@
 @implements IDisposable
 @using Lib
-@inject AppViewModel AppViewModel
+@inject MainViewModel MainViewModel
 
 <MatCard>
   <div style="background: #673ab7; color: white; font-size: 100%">
@@ -39,12 +39,12 @@ Disabled="@ViewModel.IsSubmitButtonDisabled">@ViewModel.SubmitButtonText
 </MatDialog>
 
 @code {
-  GameManagerViewModel ViewModel => AppViewModel.GameManagerViewModel;
+  GameManagerViewModel ViewModel => MainViewModel.GameManagerViewModel;
 
   protected override async Task OnInitializedAsync()
   {
-    AppViewModel.GameManagerViewModel.StateChanged += OnViewModelChanged;
-    await AppViewModel.InitializeAsync();
+    MainViewModel.GameManagerViewModel.StateChanged += OnViewModelChanged;
+    await MainViewModel.InitializeAsync();
   }
 
   void OnViewModelChanged(EventArgs args)
@@ -54,6 +54,6 @@ Disabled="@ViewModel.IsSubmitButtonDisabled">@ViewModel.SubmitButtonText
 
   public void Dispose()
   {
-    AppViewModel.GameManagerViewModel.StateChanged -= OnViewModelChanged;
+    MainViewModel.GameManagerViewModel.StateChanged -= OnViewModelChanged;
   }
 }

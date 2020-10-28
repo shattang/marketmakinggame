@@ -8,7 +8,7 @@ namespace MarketMakingGame.Shared.Messages
     public CreateGameResponse() : base()
     { }
 
-    public CreateGameResponse(CreateGameRequest request) : base(request, true)
+    public CreateGameResponse(CreateGameRequest request) : base(request)
     {
       GameId = Guid.NewGuid().ToBase62();
     }

@@ -8,7 +8,7 @@ namespace MarketMakingGame.Shared.Messages
     public JoinGameResponse()
     { }
 
-    public JoinGameResponse(JoinGameRequest request) : base(request, true)
+    public JoinGameResponse(JoinGameRequest request) : base(request)
     {
     }
 

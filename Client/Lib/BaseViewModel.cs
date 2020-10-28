@@ -3,7 +3,7 @@ using System.Threading.Tasks;
 
 namespace MarketMakingGame.Client.Lib
 {
-  public abstract class BaseViewModel
+  public abstract class BaseViewModel : IDisposable
   {
     public BaseViewModel()
     {
@@ -18,6 +18,8 @@ namespace MarketMakingGame.Client.Lib
     public abstract (bool Success, string ErrorMessages) CheckValid();
 
     public abstract Task InitializeAsync();
+
+    public abstract void Dispose();
 
     public event Action<EventArgs> StateChanged;
   }

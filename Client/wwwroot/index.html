@@ -14,10 +14,25 @@
     <link href="_content/Blazorise.Bootstrap/blazorise.bootstrap.css" rel="stylesheet" />
     <link href="_content/MatBlazor/dist/matBlazor.css" rel="stylesheet" />
     <link href="css/app.css" rel="stylesheet" />
+
+    <style type="text/css">
+        html,
+        body {
+            height: 100%;
+            margin: 0;
+        }
+
+        #wrapper {
+            min-height: 100%;
+            background-image: url('spikes.png');
+        }
+    </style>
 </head>
 
 <body>
-    <app>Loading...</app>
+    <div id="wrapper">
+        <app>Loading...</app>
+    </div>
 
     <div id="blazor-error-ui">
         An unhandled error has occurred.

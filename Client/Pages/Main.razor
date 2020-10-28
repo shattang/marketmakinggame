@@ -1,0 +1,67 @@
+﻿@page "/"
+@implements IDisposable
+@using Lib
+@inject NavigationManager NavigationManager
+@inject MainViewModel MainViewModel
+
+<div>
+  <table style="width: 100%;">
+    <tr>
+      <td style="width: 10%;">
+        <UserBadge />
+      </td>
+      <td style="width: 80%;">
+        <div style="text-align: center; display: inline-block; width: 100%;">
+          <MatHeadline5 style="font-family: font-family: 'Times New Roman', Times, serif;"><img src="poker.png" width=32
+            height=32 /> The Market Maker's Poker</MatHeadline5>
+        </div>
+      </td>
+      <td style="width: 10%;"></td>
+    </tr>
+  </table>
+
+  <p></p>
+  <MatDivider />
+  <p></p>
+
+  @if (ViewModel.ViewType == MainViewModel.ViewTypes.GameManager)
+  {
+    <GameManager />
+  }
+  else if (ViewModel.ViewType == MainViewModel.ViewTypes.GamePlayer)
+  {
+    <Console />
+  }
+  else
+  {
+    <p>Loading ...</p>
+  }
+</div>
+
+@code {
+  MainViewModel ViewModel => MainViewModel;
+
+  public String JoinGameId { get; set; } = String.Empty;
+
+  protected override async Task OnInitializedAsync()
+  {
+    MainViewModel.StateChanged += OnViewModelChanged;
+    await MainViewModel.InitializeAsync();
+
+    if (!MainViewModel.UserDataEditorViewModel.CheckValid().Success)
+    {
+      MainViewModel.UserDataEditorViewModel.IsUserDataEditorOpen = true;
+    }
+
+    ViewModel.ViewType = MainViewModel.ViewTypes.GameManager;
+  }
+
+  void OnViewModelChanged(EventArgs e)
+  {
+    StateHasChanged();
+  }
+
+  public void Dispose()
+  { }
+
+}
