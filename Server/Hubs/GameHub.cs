@@ -14,9 +14,9 @@ namespace MarketMakingGame.Server.Hubs
   public class GameHub : Hub
   {
     private readonly ILogger _logger;
-    private readonly GameEngine _gameEngine;
+    private readonly GameService _gameEngine;
 
-    public GameHub(ILogger<GameHub> logger, GameEngine gameEngine)
+    public GameHub(ILogger<GameHub> logger, GameService gameEngine)
     {
       _logger = logger;
       _gameEngine = gameEngine;

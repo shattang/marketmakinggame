@@ -10,6 +10,10 @@ namespace MarketMakingGame.Shared.Models
 
     public String GameName { get; set; }
 
+    public int NumberOfRounds { get; set; }
+
+    public double MinQuoteWidth { get; set; }
+
     public override string ToString()
     {
       return this.ToStringWithProperties();
