@@ -1,13 +1,14 @@
 using System;
 using System.Collections.Generic;
-using MarketMakingGame.Shared.Models;
 using MarketMakingGame.Shared.Lib;
 
-namespace MarketMakingGame.Shared.Messages
+namespace MarketMakingGame.Shared.Models
 {
-  public sealed class GetGameInfoResponse : BaseResponse
+  public class GameInfo
   {
-    public List<GameInfo> GameInfos { get; set; }
+    public String GameId { get; set; }
+
+    public String GameName { get; set; }
 
     public override string ToString()
     {

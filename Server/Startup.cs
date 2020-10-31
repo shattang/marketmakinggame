@@ -7,6 +7,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using System.Linq;
 using MarketMakingGame.Server.Hubs;
+using MarketMakingGame.Server.Lib;
 
 namespace MarketMakingGame.Server
 {
@@ -31,6 +32,7 @@ namespace MarketMakingGame.Server
               opts.MimeTypes = ResponseCompressionDefaults.MimeTypes.Concat(
                           new[] { "application/octet-stream" });
             });
+      services.AddSingleton<GameEngine>();
     }
 
     // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.

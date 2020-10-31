@@ -2,9 +2,9 @@ using System;
 using System.Collections.Generic;
 using MarketMakingGame.Shared.Lib;
 
-namespace MarketMakingGame.Client.Models
+namespace MarketMakingGame.Shared.Models
 {
-  public class UserData
+  public class UserInfo
   {
     public String DisplayName { get; set; }
 

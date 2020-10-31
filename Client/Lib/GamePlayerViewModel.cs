@@ -4,6 +4,7 @@ using System.ComponentModel.DataAnnotations;
 using Blazored.LocalStorage;
 using System.Collections.Generic;
 using MarketMakingGame.Shared.Messages;
+using MarketMakingGame.Shared.Models;
 
 namespace MarketMakingGame.Client.Lib
 {
@@ -23,6 +24,6 @@ namespace MarketMakingGame.Client.Lib
     {
     }
 
-    public string GameId { get; internal set; }
+    public GameInfo GameInfo { get; set; }
   }
 }

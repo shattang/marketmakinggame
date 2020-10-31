@@ -3,6 +3,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Blazored.LocalStorage;
 using MarketMakingGame.Shared.Messages;
+using MarketMakingGame.Shared.Models;
 using Microsoft.AspNetCore.Components;
 using Microsoft.Extensions.Logging;
 
@@ -71,9 +72,9 @@ namespace MarketMakingGame.Client.Lib
       return (true, string.Empty);
     }
 
-    internal void ShowGamePlayer(CreateGameResponse response)
+    internal void ShowGamePlayer(GameInfo response)
     {
-      GamePlayerViewModel.GameId = response.GameId;
+      GamePlayerViewModel.GameInfo = response;
       ViewType = ViewTypes.GamePlayer;
     }
   }

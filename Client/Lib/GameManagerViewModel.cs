@@ -1,9 +1,11 @@
 using System;
+using System.Linq;
 using System.Threading.Tasks;
 using System.ComponentModel.DataAnnotations;
 using Blazored.LocalStorage;
 using System.Collections.Generic;
 using MarketMakingGame.Shared.Messages;
+using MarketMakingGame.Shared.Models;
 
 namespace MarketMakingGame.Client.Lib
 {
@@ -22,8 +24,7 @@ namespace MarketMakingGame.Client.Lib
     [MaxLength(20, ErrorMessage = "Max 20 characters.")]
     public String GameName { get; set; }
     private CreateGameRequest _request = null;
-    public List<string> CreatedGameIds { get; set; }
-    public List<string> CreatedGameNames { get; set; }
+    public List<GameInfo> CreatedGames { get; set; }
     public string SubmitButtonText { get; set; } = DEFAULT_SUBMIT_BUTTON_TEXT;
     public string SubmitButtonIcon { get; set; } = DEFAULT_SUBMIT_BUTTON_ICON;
     public bool IsCreateGameFailedDialogVisible { get; set; } = false;
@@ -44,23 +45,22 @@ namespace MarketMakingGame.Client.Lib
     public override async Task InitializeAsync()
     {
       MainViewModel.GameClient.OnCreateGameResponse += OnCreateGameResponse;
-      CreatedGameIds = await _localStorage.GetItemAsync<List<string>>(CREATED_GAMES_KEY);
-      if (CreatedGameIds == null)
+      var createdGames = await _localStorage.GetItemAsync<List<GameInfo>>(CREATED_GAMES_KEY);
+      if (createdGames == null || createdGames.Count == 0)
       {
-        CreatedGameIds = new List<string>();
-        CreatedGameNames = new List<string>();
-        await _localStorage.SetItemAsync(CREATED_GAMES_KEY, CreatedGameIds);
+        CreatedGames = new List<GameInfo>();
       }
       else
       {
         var req = new GetGameInfoRequest()
         {
-          GameIds = CreatedGameIds
+          GameIds = createdGames.Select(x => x.GameId).ToList()
         };
 
         var resp = await MainViewModel.GameClient.InvokeRequestAsync<GetGameInfoResponse>("GetGameInfo", req);
-        CreatedGameNames = resp.IsSuccess ? resp.GameNames : new List<string>();
+        CreatedGames = resp.IsSuccess ? resp.GameInfos : new List<GameInfo>();
       }
+      await _localStorage.SetItemAsync(CREATED_GAMES_KEY, CreatedGames);
       InvokeStateChanged(EventArgs.Empty);
     }
 
@@ -68,15 +68,14 @@ namespace MarketMakingGame.Client.Lib
     {
       if (_request != null && response.RequestId == _request.RequestId)
       {
-        var req = _request;
+        var gameInfo = new GameInfo() { GameId = response.GameId, GameName = _request.GameName };
         ResetRequest();
 
         if (response.IsSuccess)
         {
-          CreatedGameIds.Add(response.GameId);
-          CreatedGameNames.Add(req.GameName);
-          _ = _localStorage.SetItemAsync(CREATED_GAMES_KEY, CreatedGameIds);
-          MainViewModel.ShowGamePlayer(response);
+          CreatedGames.Add(gameInfo);
+          _ = _localStorage.SetItemAsync(CREATED_GAMES_KEY, CreatedGames);
+          MainViewModel.ShowGamePlayer(gameInfo);
         }
         else
         {
@@ -127,6 +126,12 @@ namespace MarketMakingGame.Client.Lib
         IsCreateGameFailedDialogVisible = true;
         InvokeStateChanged(EventArgs.Empty);
       }
+    }
+
+    public void OnJoinGameButtonClicked(int index)
+    {
+      var info = CreatedGames[index];
+      MainViewModel.ShowGamePlayer(info);
     }
 
     private void ResetRequest()

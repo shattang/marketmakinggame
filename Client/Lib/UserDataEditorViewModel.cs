@@ -1,7 +1,7 @@
 using System;
 using System.Threading.Tasks;
 using Blazored.LocalStorage;
-using MarketMakingGame.Client.Models;
+using MarketMakingGame.Shared.Models;
 using MarketMakingGame.Shared.Lib;
 using System.ComponentModel.DataAnnotations;
 
@@ -11,7 +11,7 @@ namespace MarketMakingGame.Client.Lib
   {
     private const String USER_DATA_KEY = "MMG.UserData";
     private readonly ILocalStorageService _localStorage;
-    private UserData _data = new UserData();
+    private UserInfo _data = new UserInfo();
     private bool _isUserDataEditorOpen = false;
 
     [Required]
@@ -62,10 +62,10 @@ namespace MarketMakingGame.Client.Lib
 
     public override async Task InitializeAsync()
     {
-      var data = await _localStorage.GetItemAsync<UserData>(USER_DATA_KEY);
+      var data = await _localStorage.GetItemAsync<UserInfo>(USER_DATA_KEY);
       if (data == null)
       {
-        data = new UserData()
+        data = new UserInfo()
         {
           AvatarSeed = Guid.NewGuid().ToBase62(),
           UserId = Guid.NewGuid().ToBase62(),
@@ -95,7 +95,7 @@ namespace MarketMakingGame.Client.Lib
       var res = CheckValid();
       if (!res.Success)
         return;
-      await _localStorage.SetItemAsync<UserData>(USER_DATA_KEY, _data);
+      await _localStorage.SetItemAsync<UserInfo>(USER_DATA_KEY, _data);
       InvokeStateChanged(EventArgs.Empty);
     }
 
