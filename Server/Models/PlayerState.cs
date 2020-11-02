@@ -7,6 +7,8 @@ namespace MarketMakingGame.Server.Models
   {
     public int PlayerCard { get; set; }
 
-    
+    public double CurrentBid { get; set; }
+
+    public double CurrentAsk { get; set; }
   }
 }

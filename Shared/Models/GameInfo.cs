@@ -6,9 +6,11 @@ namespace MarketMakingGame.Shared.Models
 {
   public class GameInfo
   {
-    public String GameId { get; set; }
+    public String GameInfoId { get; set; }
 
     public String GameName { get; set; }
+
+    public int NumberOfDecks { get; set; }
 
     public int NumberOfRounds { get; set; }
 

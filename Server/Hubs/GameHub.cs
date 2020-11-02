@@ -51,8 +51,8 @@ namespace MarketMakingGame.Server.Hubs
         IsSuccess = true,
         GameId = Guid.NewGuid().ToBase62()
       };
-      var gameInfo = new GameInfo() { GameId = resp.GameId, GameName = request.GameName };
-      _gameEngine._gameInfos[gameInfo.GameId] = gameInfo;
+      var gameInfo = new GameInfo() { GameInfoId = resp.GameId, GameName = request.GameName };
+      _gameEngine._gameInfos[gameInfo.GameInfoId] = gameInfo;
       _logger.LogInformation("GameInfos: " + String.Join(",", _gameEngine._gameInfos));
       await Clients.Caller.SendAsync("OnCreateGameResponse", resp);
     }
