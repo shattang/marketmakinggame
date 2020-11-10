@@ -1,4 +1,5 @@
 using System;
+using MarketMakingGame.Shared.Models;
 
 namespace MarketMakingGame.Server.Models
 {
@@ -6,12 +7,11 @@ namespace MarketMakingGame.Server.Models
   {
     public int TradeId { get; set; }
 
-    public int GameStateId { get; set; }
     public GameState GameState { get; set; }
 
-    public int InitiatingPlayerId { get; set; }
+    public Player InitiatingPlayer { get; set; }
 
-    public int TargetPlayerId { get; set; }
+    public Player TargetPlayer { get; set; }
 
     public bool IsBuy { get; set; }
 

@@ -14,12 +14,20 @@ namespace MarketMakingGame.Server.Data
 
     public DbSet<Card> Cards { get; set; }
 
+    public DbSet<GameState> GameStates { get; set; }
+
+    public DbSet<PlayerState> PlayerStates { get; set; }
+
+    public DbSet<RoundState> RoundStates { get; set; }
+
+    public DbSet<Trade> Trades { get; set; }
+
     protected override void OnConfiguring(DbContextOptionsBuilder options)
     {
       var homeFolder = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
       options.UseSqlite($"Data Source={homeFolder}/data/marketmakinggame.db");
     }
-           
+
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

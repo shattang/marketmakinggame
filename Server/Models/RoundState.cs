@@ -1,18 +1,18 @@
 using System;
 using System.Collections.Generic;
 using MarketMakingGame.Shared.Lib;
+using MarketMakingGame.Shared.Models;
 
 namespace MarketMakingGame.Server.Models
 {
   public class RoundState
   {
-    public int RountStateId { get; set; }
+    public int RoundStateId { get; set; }
 
-    public int GameStateId { get; set; }
     public GameState GameState { get; set; }
 
-    public string CommunityCardId { get; set; }
-    
+    public Card CommunityCard { get; set; }
+
     public override string ToString()
     {
       return this.ToStringWithProperties();
