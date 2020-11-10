@@ -24,7 +24,7 @@ namespace MarketMakingGame.Client.Lib
     [MaxLength(20, ErrorMessage = "Max 20 characters.")]
     public String GameName { get; set; }
     private CreateGameRequest _request = null;
-    public List<GameInfo> CreatedGames { get; set; }
+    public List<Game> CreatedGames { get; set; }
     public string SubmitButtonText { get; set; } = DEFAULT_SUBMIT_BUTTON_TEXT;
     public string SubmitButtonIcon { get; set; } = DEFAULT_SUBMIT_BUTTON_ICON;
     public bool IsCreateGameFailedDialogVisible { get; set; } = false;
@@ -45,10 +45,10 @@ namespace MarketMakingGame.Client.Lib
     public override async Task InitializeAsync()
     {
       MainViewModel.GameClient.OnCreateGameResponse += OnCreateGameResponse;
-      var createdGames = await _localStorage.GetItemAsync<List<GameInfo>>(CREATED_GAMES_KEY);
+      var createdGames = await _localStorage.GetItemAsync<List<Game>>(CREATED_GAMES_KEY);
       if (createdGames == null || createdGames.Count == 0)
       {
-        CreatedGames = new List<GameInfo>();
+        CreatedGames = new List<Game>();
       }
       else
       {
@@ -58,7 +58,7 @@ namespace MarketMakingGame.Client.Lib
         };
 
         var resp = await MainViewModel.GameClient.InvokeRequestAsync<GetGameInfoResponse>("GetGameInfo", req);
-        CreatedGames = resp.IsSuccess ? resp.GameInfos : new List<GameInfo>();
+        CreatedGames = resp.IsSuccess ? resp.Games : new List<Game>();
       }
       await _localStorage.SetItemAsync(CREATED_GAMES_KEY, CreatedGames);
       InvokeStateChanged(EventArgs.Empty);
@@ -68,7 +68,8 @@ namespace MarketMakingGame.Client.Lib
     {
       if (_request != null && response.RequestId == _request.RequestId)
       {
-        var gameInfo = new GameInfo() { GameId = response.GameId, GameName = _request.GameName };
+        var gameInfo = _request.Game;
+        gameInfo.GameId = response.GameId;
         ResetRequest();
 
         if (response.IsSuccess)
@@ -95,10 +96,16 @@ namespace MarketMakingGame.Client.Lib
 
       _request = new CreateGameRequest()
       {
-        GameName = GameName,
-        UserAvatar = MainViewModel.UserDataEditorViewModel.AvatarSeed,
-        UserId = MainViewModel.UserDataEditorViewModel.UserId,
-        UserName = MainViewModel.UserDataEditorViewModel.DisplayName
+        Game = new Game()
+        {
+          GameName = GameName
+        },
+        Player = new Player()
+        {
+          AvatarSeed = MainViewModel.UserDataEditorViewModel.AvatarSeed,
+          PlayerId = MainViewModel.UserDataEditorViewModel.UserId,
+          DisplayName = MainViewModel.UserDataEditorViewModel.DisplayName
+        }
       };
 
       SubmitButtonText = "Waiting ...";

@@ -4,11 +4,11 @@ using MarketMakingGame.Shared.Lib;
 
 namespace MarketMakingGame.Shared.Models
 {
-  public class UserInfo
+  public class Player
   {
-    public String DisplayName { get; set; }
+    public String PlayerId { get; set; }
 
-    public String UserId { get; set; }
+    public String DisplayName { get; set; }
 
     public String AvatarSeed { get; set; }
 

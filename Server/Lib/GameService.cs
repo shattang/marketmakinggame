@@ -6,7 +6,7 @@ namespace MarketMakingGame.Server.Lib
 {
   public class GameService
   {
-    public Dictionary<string, GameInfo> _gameInfos = new Dictionary<string, GameInfo>();
+    public Dictionary<string, Game> _Games = new Dictionary<string, Game>();
 
     //public static GameEngine Instance { get; } = new GameEngine();
   }

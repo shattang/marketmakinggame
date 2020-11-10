@@ -2,6 +2,7 @@
 @implements IDisposable
 @using Lib
 @using MarketMakingGame.Shared.Messages
+@using MarketMakingGame.Shared.Models
 @inject MainViewModel MainViewModel
 
 <div class="form-group">
@@ -56,10 +57,16 @@
   {
     var message = new CreateGameRequest()
     {
-      UserName = MainViewModel.UserDataEditorViewModel.DisplayName,
-      UserId = MainViewModel.UserDataEditorViewModel.UserId,
-      UserAvatar = MainViewModel.UserDataEditorViewModel.AvatarSeed,
-      GameName = messageInput
+      Player = new Player() 
+      { 
+        DisplayName = MainViewModel.UserDataEditorViewModel.DisplayName, 
+        PlayerId = MainViewModel.UserDataEditorViewModel.UserId,
+        AvatarSeed = MainViewModel.UserDataEditorViewModel.AvatarSeed
+      },
+      Game = new Game()
+      {
+        GameName = messageInput
+      }
     };
     return MainViewModel.GameClient.SendRequestAsync("CreateGame", message);
   }
@@ -68,9 +75,12 @@
   {
     var message = new JoinGameRequest()
     {
-      UserName = MainViewModel.UserDataEditorViewModel.DisplayName,
-      UserId = MainViewModel.UserDataEditorViewModel.UserId,
-      UserAvatar = MainViewModel.UserDataEditorViewModel.AvatarSeed,
+      Player = new Player() 
+      { 
+        DisplayName = MainViewModel.UserDataEditorViewModel.DisplayName, 
+        PlayerId = MainViewModel.UserDataEditorViewModel.UserId,
+        AvatarSeed = MainViewModel.UserDataEditorViewModel.AvatarSeed
+      },
       GameId = messageInput
     };
     return MainViewModel.GameClient.SendRequestAsync("JoinGame", message);

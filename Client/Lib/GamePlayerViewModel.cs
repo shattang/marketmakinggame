@@ -24,6 +24,6 @@ namespace MarketMakingGame.Client.Lib
     {
     }
 
-    public GameInfo GameInfo { get; set; }
+    public Game GameInfo { get; set; }
   }
 }

@@ -72,7 +72,7 @@ namespace MarketMakingGame.Client.Lib
       return (true, string.Empty);
     }
 
-    internal void ShowGamePlayer(GameInfo response)
+    internal void ShowGamePlayer(Game response)
     {
       GamePlayerViewModel.GameInfo = response;
       ViewType = ViewTypes.GamePlayer;

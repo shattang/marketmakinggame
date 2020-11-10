@@ -11,7 +11,7 @@ namespace MarketMakingGame.Client.Lib
   {
     private const String USER_DATA_KEY = "MMG.UserData";
     private readonly ILocalStorageService _localStorage;
-    private UserInfo _data = new UserInfo();
+    private Player _data = new Player();
     private bool _isUserDataEditorOpen = false;
 
     [Required]
@@ -30,7 +30,7 @@ namespace MarketMakingGame.Client.Lib
       }
     }
 
-    public String UserId => _data.UserId;
+    public String UserId => _data.PlayerId;
 
     public String AvatarSeed => _data.AvatarSeed;
 
@@ -62,13 +62,13 @@ namespace MarketMakingGame.Client.Lib
 
     public override async Task InitializeAsync()
     {
-      var data = await _localStorage.GetItemAsync<UserInfo>(USER_DATA_KEY);
+      var data = await _localStorage.GetItemAsync<Player>(USER_DATA_KEY);
       if (data == null)
       {
-        data = new UserInfo()
+        data = new Player()
         {
           AvatarSeed = Guid.NewGuid().ToBase62(),
-          UserId = Guid.NewGuid().ToBase62(),
+          PlayerId = Guid.NewGuid().ToBase62(),
           DisplayName = String.Empty
         };
         await _localStorage.SetItemAsync(USER_DATA_KEY, data);
@@ -95,7 +95,7 @@ namespace MarketMakingGame.Client.Lib
       var res = CheckValid();
       if (!res.Success)
         return;
-      await _localStorage.SetItemAsync<UserInfo>(USER_DATA_KEY, _data);
+      await _localStorage.SetItemAsync<Player>(USER_DATA_KEY, _data);
       InvokeStateChanged(EventArgs.Empty);
     }
 
