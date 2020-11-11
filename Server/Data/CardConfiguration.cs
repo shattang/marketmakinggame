@@ -39,6 +39,15 @@ namespace MarketMakingGame.Server.Data
         }
       }
 
+      var unopenedCard = new Card()
+      {
+        CardId = ++counter,
+        CardDescription = "Unopened",
+        CardImageUrl = "/images/cards/back_card_red.svg",
+        CardValue = 0
+      };
+      cards.Add(unopenedCard);
+      
       builder.HasData(cards.ToArray());
     }
   }

@@ -16,16 +16,16 @@ namespace MarketMakingGame.Server.Hubs
     private readonly ILogger _logger;
     private readonly GameService _gameEngine;
 
-    public GameHub(ILogger<GameHub> logger, GameService gameEngine)
+    public GameHub(ILogger<GameHub> logger, GameService gameService)
     {
       _logger = logger;
-      _gameEngine = gameEngine;
+      _gameEngine = gameService;
     }
 
     public async Task<GetGameInfoResponse> GetGameInfo(GetGameInfoRequest request)
     {
-      _logger.LogInformation("Games: " + String.Join(",", _gameEngine._Games));
-      var lists = request.GameIds.Select(x => _gameEngine._Games.GetValueOrDefault(x, null)).Where(x => x != null).ToList();
+      _logger.LogInformation("Games: " + String.Join(",", _gameEngine.Games));
+      var lists = request.GameIds.Select(x => _gameEngine.Games.GetValueOrDefault(x, null)).Where(x => x != null).ToList();
       _logger.LogInformation("GetGameInfo {} {}", request, String.Join("," , lists));
       
       return //await Task.FromResult(
@@ -52,8 +52,8 @@ namespace MarketMakingGame.Server.Hubs
         GameId = Guid.NewGuid().ToBase62()
       };
       var gameInfo = new Game() { GameId = resp.GameId, GameName = request.Game.GameName };
-      _gameEngine._Games[gameInfo.GameId] = gameInfo;
-      _logger.LogInformation("Games: " + String.Join(",", _gameEngine._Games));
+      _gameEngine.Games[gameInfo.GameId] = gameInfo;
+      _logger.LogInformation("Games: " + String.Join(",", _gameEngine.Games));
       await Clients.Caller.SendAsync("OnCreateGameResponse", resp);
     }
 

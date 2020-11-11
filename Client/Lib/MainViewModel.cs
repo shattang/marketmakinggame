@@ -27,6 +27,7 @@ namespace MarketMakingGame.Client.Lib
     public UserDataEditorViewModel UserDataEditorViewModel { get; }
     public GameManagerViewModel GameManagerViewModel { get; }
     public GamePlayerViewModel GamePlayerViewModel { get; }
+    public CardRepositoryViewModel CardRepositoryViewModel { get; }
 
     public MainViewModel(ILocalStorageService localStorage,
     ILoggerProvider loggerProvider, NavigationManager navigationManager)
@@ -36,6 +37,7 @@ namespace MarketMakingGame.Client.Lib
       UserDataEditorViewModel = new UserDataEditorViewModel(localStorage);
       GameManagerViewModel = new GameManagerViewModel(this, localStorage);
       GamePlayerViewModel = new GamePlayerViewModel();
+      CardRepositoryViewModel = new CardRepositoryViewModel(this);
       _logger.LogInformation("Created!");
     }
 
@@ -57,6 +59,7 @@ namespace MarketMakingGame.Client.Lib
       await UserDataEditorViewModel.InitializeAsync();
       await GameManagerViewModel.InitializeAsync();
       await GamePlayerViewModel.InitializeAsync();
+      await CardRepositoryViewModel.InitializeAsync();
       state = STATE_INITIALIZED;
       _logger.LogInformation("Init!");
     }

@@ -28,7 +28,6 @@ namespace MarketMakingGame.Server.Data
       options.UseSqlite($"Data Source={homeFolder}/data/marketmakinggame.db");
     }
 
-
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
       modelBuilder.ApplyConfiguration(new CardConfiguration());
