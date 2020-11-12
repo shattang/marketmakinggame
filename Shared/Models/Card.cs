@@ -14,5 +14,10 @@ namespace MarketMakingGame.Shared.Models
     public string CardDescription { get; set; }
 
     public double CardValue { get; set; }
+
+    public override string ToString()
+    {
+      return this.ToStringWithProperties();
+    }
   }
 }

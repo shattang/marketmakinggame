@@ -8,6 +8,7 @@ using Microsoft.Extensions.Hosting;
 using System.Linq;
 using MarketMakingGame.Server.Hubs;
 using MarketMakingGame.Server.Lib;
+using MarketMakingGame.Server.Data;
 
 namespace MarketMakingGame.Server
 {
@@ -20,8 +21,6 @@ namespace MarketMakingGame.Server
 
     public IConfiguration Configuration { get; }
 
-    // This method gets called by the runtime. Use this method to add services to the container.
-    // For more information on how to configure your application, visit https://go.microsoft.com/fwlink/?LinkID=398940
     public void ConfigureServices(IServiceCollection services)
     {
       services.AddSignalR();
@@ -32,10 +31,10 @@ namespace MarketMakingGame.Server
               opts.MimeTypes = ResponseCompressionDefaults.MimeTypes.Concat(
                           new[] { "application/octet-stream" });
             });
+      services.AddDbContext<GameDbContext>();
       services.AddSingleton<GameService>();
     }
 
-    // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
     public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
     {
       app.UseResponseCompression();
@@ -44,7 +43,6 @@ namespace MarketMakingGame.Server
       {
         app.UseDeveloperExceptionPage();
         app.UseWebAssemblyDebugging();
-
       }
       else
       {
@@ -58,6 +56,8 @@ namespace MarketMakingGame.Server
       app.UseStaticFiles();
 
       app.UseRouting();
+
+      app.ApplicationServices.GetService<GameService>().Initialize();
 
       app.UseEndpoints(endpoints =>
       {
