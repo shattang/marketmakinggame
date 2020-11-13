@@ -35,7 +35,7 @@ namespace MarketMakingGame.Client.Lib
       GameClient = new GameClient(loggerProvider, navigationManager);
       UserDataEditorViewModel = new UserDataEditorViewModel(localStorage);
       GameManagerViewModel = new GameManagerViewModel(this, localStorage);
-      GamePlayerViewModel = new GamePlayerViewModel(this);
+      GamePlayerViewModel = new GamePlayerViewModel(this, localStorage);
       _logger.LogInformation("Created!");
     }
 

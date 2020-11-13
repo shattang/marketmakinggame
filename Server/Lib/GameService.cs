@@ -23,6 +23,10 @@ namespace MarketMakingGame.Server.Lib
 
     public List<Card> Cards { get; private set; }
 
+    public event Action<string, BaseResponse> OnGameUpdate;
+
+    public event Action<string ,string, BaseResponse> OnPlayerUpdate;
+
     public GameService(ILogger<GameService> logger)
     {
       _logger = logger;
@@ -120,6 +124,22 @@ namespace MarketMakingGame.Server.Lib
       resp.IsSuccess = true;
       //TODO
       return resp;
+    }
+
+    private void InvokeOnGameUpdate(string gameId, BaseResponse response)
+    {
+      if (OnGameUpdate != null)
+      {
+        OnGameUpdate(gameId, response);
+      }
+    }
+
+    private void InvokeOnGameUpdate(string gameId, string playerId, BaseResponse response)
+    {
+      if (OnPlayerUpdate != null)
+      {
+        OnPlayerUpdate(gameId, playerId, response);
+      }
     }
   }
 }
