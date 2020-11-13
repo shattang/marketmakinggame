@@ -17,11 +17,11 @@ namespace MarketMakingGame.Server.Lib
     private readonly ILogger<GameService> _logger;
     private readonly GameDbContext _dbContext;
 
-    public ConcurrentDictionary<string, GameEngine> Games { get; }
+    private ConcurrentDictionary<string, GameEngine> Games { get; }
 
-    public Card UnopenedCard { get; private set; }
+    private Card UnopenedCard { get; set; }
 
-    public List<Card> Cards { get; private set; }
+    private List<Card> Cards { get; set; }
 
     public event Action<string, BaseResponse> OnGameUpdate;
 
@@ -93,12 +93,12 @@ namespace MarketMakingGame.Server.Lib
         return resp;
       }
 
-      var gameInfo = request.Game;
-      gameInfo.GameId = Guid.NewGuid().ToBase62();
-      Games[gameInfo.GameId] = new GameEngine(gameInfo);
+      var gameEngine = new GameEngine(request, _dbContext);
+      Games[gameEngine.Game.GameId] = gameEngine;
+
 
       resp.IsSuccess = true;
-      resp.GameId = gameInfo.GameId;
+      resp.GameId = gameEngine.Game.GameId;
       return resp;
     }
 
