@@ -12,33 +12,35 @@ using System.Collections.Concurrent;
 
 namespace MarketMakingGame.Server.Lib
 {
-  public class GameService
+  public class GameService : IDisposable
   {
-    private readonly ILogger<GameService> _logger;
-    private readonly GameDbContext _dbContext;
+    private readonly ILoggerProvider _loggerProvider;
+    private readonly ILogger _logger;
+    internal GameDbContext DBContext { get; }
 
-    private ConcurrentDictionary<string, GameEngine> Games { get; }
+    private ConcurrentDictionary<string, GameEngine> GameEngines { get; }
 
-    private Card UnopenedCard { get; set; }
+    internal Card UnopenedCard { get; set; }
 
-    private List<Card> Cards { get; set; }
+    internal List<Card> Cards { get; set; }
 
     public event Action<string, BaseResponse> OnGameUpdate;
 
-    public event Action<string ,string, BaseResponse> OnPlayerUpdate;
+    public event Action<string, string, BaseResponse> OnPlayerUpdate;
 
-    public GameService(ILogger<GameService> logger)
+    public GameService(ILoggerProvider loggerProvider)
     {
-      _logger = logger;
-      _dbContext = new GameDbContext();
-      Games = new ConcurrentDictionary<string, GameEngine>();
+      _loggerProvider = loggerProvider;
+      _logger = loggerProvider.CreateLogger(nameof(GameService));
+      DBContext = new GameDbContext();
+      GameEngines = new ConcurrentDictionary<string, GameEngine>();
       Cards = new List<Card>();
     }
 
     public void Initialize()
     {
-      _logger.LogInformation("Loading cards");
-      foreach (var card in _dbContext.Cards)
+      _logger.LogInformation("Initializing");
+      foreach (var card in DBContext.Cards)
       {
         if (Math.Abs(card.CardValue) < 1E-6)
         {
@@ -49,7 +51,7 @@ namespace MarketMakingGame.Server.Lib
           Cards.Add(card);
         }
       }
-      _logger.LogInformation($"Cards Loaded {UnopenedCard} {Cards.Count}");
+      _logger.LogInformation("Initialized");
     }
 
     public GetGameInfoResponse GetGameInfo(GetGameInfoRequest request)
@@ -57,7 +59,7 @@ namespace MarketMakingGame.Server.Lib
       _logger.LogInformation("GetGameInfo {}", request);
 
       var lists = request.GameIds
-        .Select(x => Games.GetValueOrDefault(x, null))
+        .Select(x => GameEngines.GetValueOrDefault(x, null))
         .Where(x => x != null).Select(x => x.Game).ToList();
 
       return new GetGameInfoResponse()
@@ -81,24 +83,30 @@ namespace MarketMakingGame.Server.Lib
       };
     }
 
-    public CreateGameResponse CreateGame(CreateGameRequest request)
+    public async Task<CreateGameResponse> CreateGame(CreateGameRequest request)
     {
-      _logger.LogInformation("CreateGame {}", request);
-
+      _logger.LogInformation("CreateGame: Request={}", request);
       var resp = new CreateGameResponse() { RequestId = request.RequestId };
-
+      
       if (String.IsNullOrWhiteSpace(request.Game.GameName))
       {
         resp.ErrorMessage = "Invalid GameName";
         return resp;
       }
 
-      var gameEngine = new GameEngine(request, _dbContext);
-      Games[gameEngine.Game.GameId] = gameEngine;
+      var gameEngine = new GameEngine(_loggerProvider, this);
+      try
+      {
+        await gameEngine.InitializeAsync(request);
+        GameEngines[gameEngine.Game.GameId] = gameEngine;
+        resp.IsSuccess = true;
+        resp.GameId = gameEngine.Game.GameId;
+      }
+      catch (Exception ex)
+      {
+        resp.ErrorMessage = ex.Message;
+      }
 
-
-      resp.IsSuccess = true;
-      resp.GameId = gameEngine.Game.GameId;
       return resp;
     }
 
@@ -114,7 +122,7 @@ namespace MarketMakingGame.Server.Lib
         return resp;
       }
 
-      var game = Games.GetValueOrDefault(request.GameId);
+      var game = GameEngines.GetValueOrDefault(request.GameId);
       if (game == null)
       {
         resp.ErrorMessage = "Game not found";
@@ -140,6 +148,11 @@ namespace MarketMakingGame.Server.Lib
       {
         OnPlayerUpdate(gameId, playerId, response);
       }
+    }
+
+    public void Dispose()
+    {
+      DBContext.Dispose();
     }
   }
 }

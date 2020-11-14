@@ -3,9 +3,9 @@ using System.Collections.Generic;
 using System.Linq;
 using System.ComponentModel.DataAnnotations;
 
-namespace MarketMakingGame.Client.Lib
+namespace MarketMakingGame.Shared.Lib
 {
-  static class ValidationHelpers
+  public static class ValidationHelpers
   {
     public static (bool Success, string ErrorMessages) ValidateObject<T>(T obj)
     {
