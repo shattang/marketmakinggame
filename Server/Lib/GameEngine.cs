@@ -7,6 +7,7 @@ using MarketMakingGame.Shared.Lib;
 using System.Threading.Tasks;
 using System.Collections.Generic;
 using Microsoft.Extensions.Logging;
+using Microsoft.EntityFrameworkCore;
 
 namespace MarketMakingGame.Server.Lib
 {
@@ -27,23 +28,31 @@ namespace MarketMakingGame.Server.Lib
 
     public async Task InitializeAsync(CreateGameRequest request)
     {
-      request.Game.GameId = new Guid().ToBase62();
-      _service.DBContext.Games.Add(request.Game);
-
-      if (_service.DBContext.Players.Find(request.Player.PlayerId) == null)
+      try
       {
-        _service.DBContext.Players.Add(request.Player);
+        request.Game.GameId = Guid.NewGuid().ToBase62();
+        await _service.DBContext.Games.AddAsync(request.Game);
+
+        var player = await _service.DBContext.Players.FindAsync(request.Player.PlayerId);
+        if (player == null)
+        {
+          await _service.DBContext.Players.AddAsync(request.Player);
+        }
+
+        GameState = new GameState()
+        {
+          GameId = request.Game.GameId,
+          PlayerId = request.Player.PlayerId
+        };
+
+        _service.DBContext.GameStates.Add(GameState);
+        await _service.DBContext.SaveChangesAsync();
+        _logger.LogInformation("Created GameState={}", GameState);
       }
-
-      GameState = new GameState()
+      catch (Exception ex)
       {
-        Game = request.Game,
-        Player = request.Player
-      };
-
-      _service.DBContext.GameStates.Add(GameState);
-      await _service.DBContext.SaveChangesAsync();
-      _logger.LogInformation("Created GameId={}", GameState.Game.GameId);
+        _logger.LogError(ex, nameof(InitializeAsync));
+      }
     }
 
     public async Task JoinGameAsync(JoinGameRequest request)

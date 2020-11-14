@@ -58,15 +58,14 @@ namespace MarketMakingGame.Server.Lib
     {
       _logger.LogInformation("GetGameInfo {}", request);
 
-      var lists = request.GameIds
-        .Select(x => GameEngines.GetValueOrDefault(x, null))
-        .Where(x => x != null).Select(x => x.Game).ToList();
+      var lookup = DBContext.Games
+        .Where(x => request.GameIds.Contains(x.GameId)).ToList();
 
       return new GetGameInfoResponse()
       {
         RequestId = request.RequestId,
         IsSuccess = true,
-        Games = lists
+        Games = lookup
       };
     }
 

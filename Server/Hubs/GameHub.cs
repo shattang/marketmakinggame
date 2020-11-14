@@ -98,6 +98,7 @@ namespace MarketMakingGame.Server.Hubs
         await AddMembership(request.GameId, request.Player.PlayerId, Context.ConnectionId);
       }
 
+      _logger.LogInformation("Sending Response: {}", resp);
       await Clients.Caller.SendAsync("OnJoinGameResponse", resp);
     }
 

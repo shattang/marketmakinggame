@@ -10,8 +10,10 @@ namespace MarketMakingGame.Server.Models
   {
     public int GameStateId { get; set; }
 
+    public string GameId { get; set; }
     public Game Game { get; set; }
 
+    public string PlayerId { get; set; }
     public Player Player { get; set; }
 
     public List<PlayerState> PlayerStates { get; set; }
