@@ -28,36 +28,34 @@ namespace MarketMakingGame.Server.Lib
 
     public async Task InitializeAsync(CreateGameRequest request)
     {
-      try
+      request.Game.GameId = Guid.NewGuid().ToBase62();
+      await _service.DBContext.Games.AddAsync(request.Game);
+
+      var player = await _service.DBContext.Players.FindAsync(request.Player.PlayerId);
+      if (player == null)
       {
-        request.Game.GameId = Guid.NewGuid().ToBase62();
-        await _service.DBContext.Games.AddAsync(request.Game);
-
-        var player = await _service.DBContext.Players.FindAsync(request.Player.PlayerId);
-        if (player == null)
-        {
-          await _service.DBContext.Players.AddAsync(request.Player);
-        }
-
-        GameState = new GameState()
-        {
-          GameId = request.Game.GameId,
-          PlayerId = request.Player.PlayerId
-        };
-
-        _service.DBContext.GameStates.Add(GameState);
-        await _service.DBContext.SaveChangesAsync();
-        _logger.LogInformation("Created GameState={}", GameState);
+        await _service.DBContext.Players.AddAsync(request.Player);
       }
-      catch (Exception ex)
+
+      GameState = new GameState()
       {
-        _logger.LogError(ex, nameof(InitializeAsync));
-      }
+        GameId = request.Game.GameId,
+        PlayerId = request.Player.PlayerId
+      };
+
+      var playerState = new PlayerState()
+      {
+
+      };
+
+      _service.DBContext.GameStates.Add(GameState);
+      await _service.DBContext.SaveChangesAsync();
+      _logger.LogInformation("Created GameState={}", GameState);
     }
 
     public async Task JoinGameAsync(JoinGameRequest request)
     {
-
+      
     }
   }
 }

@@ -103,7 +103,8 @@ namespace MarketMakingGame.Server.Lib
       }
       catch (Exception ex)
       {
-        resp.ErrorMessage = ex.Message;
+        _logger.LogError(ex, nameof(CreateGame));
+        resp.ErrorMessage = $"Error: {ex.GetType().Name}({ex.Message})";
       }
 
       return resp;
@@ -124,8 +125,7 @@ namespace MarketMakingGame.Server.Lib
       var game = GameEngines.GetValueOrDefault(request.GameId);
       if (game == null)
       {
-        resp.ErrorMessage = "Game not found";
-        return resp;
+        
       }
 
       resp.IsSuccess = true;

@@ -1,2 +1,11 @@
-@page "/playgame"
+@page "/playgame/{gameid}"
 
+
+<p>
+  Joining Game: @GameId
+</p>
+
+@code {
+  [Parameter]
+  public string GameId { get; set; }
+}

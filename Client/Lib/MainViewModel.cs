@@ -11,18 +11,12 @@ namespace MarketMakingGame.Client.Lib
 {
   public class MainViewModel : BaseViewModel
   {
-    public enum ViewTypes
-    {
-      Default,
-      GameManager,
-      GamePlayer
-    };
-
     private const int STATE_CREATED = 0, STATE_INITIALIZING = 1, STATE_INITIALIZED = 2;
     private volatile int state = STATE_CREATED;
     private ILogger _logger;
-    private ViewTypes viewType;
+    private NavigationManager _navManager;
 
+    public bool IsInitialized => state == STATE_INITIALIZED;
     public GameClient GameClient { get; }
     public UserDataEditorViewModel UserDataEditorViewModel { get; }
     public GameManagerViewModel GameManagerViewModel { get; }
@@ -32,21 +26,12 @@ namespace MarketMakingGame.Client.Lib
     ILoggerProvider loggerProvider, NavigationManager navigationManager)
     {
       _logger = loggerProvider.CreateLogger(nameof(MainViewModel));
+      _navManager = navigationManager;
       GameClient = new GameClient(loggerProvider, navigationManager);
       UserDataEditorViewModel = new UserDataEditorViewModel(localStorage);
       GameManagerViewModel = new GameManagerViewModel(this, localStorage);
       GamePlayerViewModel = new GamePlayerViewModel(this, localStorage);
       _logger.LogInformation("Created!");
-    }
-
-    public ViewTypes ViewType
-    {
-      get => viewType;
-      set
-      {
-        viewType = value;
-        InvokeStateChanged(EventArgs.Empty);
-      }
     }
 
     public override async Task InitializeAsync()
@@ -75,7 +60,7 @@ namespace MarketMakingGame.Client.Lib
     internal void ShowGamePlayer(Game game)
     {
       GamePlayerViewModel.CurrentGame = game;
-      ViewType = ViewTypes.GamePlayer;
+      _navManager.NavigateTo($"/playgame/{game.GameId}");
     }
   }
 }

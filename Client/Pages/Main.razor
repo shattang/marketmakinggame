@@ -24,13 +24,9 @@
   <MatDivider />
   <p></p>
 
-  @if (ViewModel.ViewType == MainViewModel.ViewTypes.GameManager)
+  @if (ViewModel.IsInitialized)
   {
     <GameManager />
-  }
-  else if (ViewModel.ViewType == MainViewModel.ViewTypes.GamePlayer)
-  {
-    <Console />
   }
   else
   {
@@ -41,8 +37,6 @@
 @code {
   MainViewModel ViewModel => MainViewModel;
 
-  public String JoinGameId { get; set; } = String.Empty;
-
   protected override async Task OnInitializedAsync()
   {
     MainViewModel.StateChanged += OnViewModelChanged;
@@ -52,8 +46,6 @@
     {
       MainViewModel.UserDataEditorViewModel.IsUserDataEditorOpen = true;
     }
-
-    ViewModel.ViewType = MainViewModel.ViewTypes.GameManager;
   }
 
   void OnViewModelChanged(EventArgs e)
@@ -63,5 +55,4 @@
 
   public void Dispose()
   { }
-
 }

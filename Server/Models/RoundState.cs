@@ -9,8 +9,10 @@ namespace MarketMakingGame.Server.Models
   {
     public int RoundStateId { get; set; }
 
+    public int GameStateId { get; set; }
     public GameState GameState { get; set; }
 
+    public int CommunityCardCardId { get; set; }
     public Card CommunityCard { get; set; }
 
     public override string ToString()
