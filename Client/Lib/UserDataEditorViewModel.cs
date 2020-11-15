@@ -11,31 +11,11 @@ namespace MarketMakingGame.Client.Lib
   {
     private const String USER_DATA_KEY = "MMG.UserData";
     private readonly ILocalStorageService _localStorage;
-    private Player _data = new Player();
+    public Player Data { get; set; } = new Player();
     private bool _isUserDataEditorOpen = false;
 
-    [Required]
-    [MaxLength(20, ErrorMessage = "Max 20 characters")]
-    [MinLength(3, ErrorMessage = "Min 3 characters")]
-    public String DisplayName
-    {
-      get { return _data.DisplayName; }
-      set
-      {
-        if (_data.DisplayName != value)
-        {
-          _data.DisplayName = value;
-          _ = SaveUserDataAsync();
-        }
-      }
-    }
-
-    public String UserId => _data.PlayerId;
-
-    public String AvatarSeed => _data.AvatarSeed;
-
     public String AvatarUrl =>
-      $"https://avatars.dicebear.com/api/gridy/{AvatarSeed}.svg";
+      $"https://avatars.dicebear.com/api/gridy/{Data.AvatarSeed}.svg";
 
     public bool IsUserDataEditorOpen
     {
@@ -57,7 +37,7 @@ namespace MarketMakingGame.Client.Lib
 
     public override (bool Success, string ErrorMessages) CheckValid()
     {
-      return ValidationHelpers.ValidateObject(this);
+      return ValidationHelpers.ValidateObject(this.Data);
     }
 
     public override async Task InitializeAsync()
@@ -73,21 +53,18 @@ namespace MarketMakingGame.Client.Lib
         };
         await _localStorage.SetItemAsync(USER_DATA_KEY, data);
       }
-      _data = data;
+      Data = data;
       InvokeStateChanged(EventArgs.Empty);
     }
 
     public void RefreshAvatar()
     {
-      _ = RefreshAvatarAsync();
+      Data.AvatarSeed = Guid.NewGuid().ToBase62();
     }
 
-    private async Task RefreshAvatarAsync()
+    public void SaveUserData()
     {
-      if (_data == null)
-        await InitializeAsync();
-      _data.AvatarSeed = Guid.NewGuid().ToBase62();
-      await SaveUserDataAsync();
+      _ = SaveUserDataAsync();
     }
 
     private async Task SaveUserDataAsync()
@@ -95,7 +72,7 @@ namespace MarketMakingGame.Client.Lib
       var res = CheckValid();
       if (!res.Success)
         return;
-      await _localStorage.SetItemAsync<Player>(USER_DATA_KEY, _data);
+      await _localStorage.SetItemAsync<Player>(USER_DATA_KEY, Data);
       InvokeStateChanged(EventArgs.Empty);
     }
 

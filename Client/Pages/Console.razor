@@ -59,9 +59,9 @@
     {
       Player = new Player() 
       { 
-        DisplayName = MainViewModel.UserDataEditorViewModel.DisplayName, 
-        PlayerId = MainViewModel.UserDataEditorViewModel.UserId,
-        AvatarSeed = MainViewModel.UserDataEditorViewModel.AvatarSeed
+        DisplayName = MainViewModel.UserDataEditorViewModel.Data.DisplayName, 
+        PlayerId = MainViewModel.UserDataEditorViewModel.Data.PlayerId,
+        AvatarSeed = MainViewModel.UserDataEditorViewModel.Data.AvatarSeed
       },
       Game = new Game()
       {
@@ -77,9 +77,9 @@
     {
       Player = new Player() 
       { 
-        DisplayName = MainViewModel.UserDataEditorViewModel.DisplayName, 
-        PlayerId = MainViewModel.UserDataEditorViewModel.UserId,
-        AvatarSeed = MainViewModel.UserDataEditorViewModel.AvatarSeed
+        DisplayName = MainViewModel.UserDataEditorViewModel.Data.DisplayName, 
+        PlayerId = MainViewModel.UserDataEditorViewModel.Data.PlayerId,
+        AvatarSeed = MainViewModel.UserDataEditorViewModel.Data.AvatarSeed
       },
       GameId = messageInput
     };

@@ -9,8 +9,10 @@ namespace MarketMakingGame.Shared.Models
   {
     public int CardId { get; set; }
  
+    [Required]
     public string CardImageUrl { get; set; }
 
+    [Required]
     public string CardDescription { get; set; }
 
     public double CardValue { get; set; }

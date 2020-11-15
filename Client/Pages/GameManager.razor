@@ -40,8 +40,8 @@ else
           <MatExpansionPanelDetails>
               <EditForm Model="ViewModel">
                 <DataAnnotationsValidator />
-                <MatTextField FullWidth="true" Label="Game Name" @bind-Value="@ViewModel.GameName" />
-                <ValidationMessage For="@(() => @ViewModel.GameName)" style="font-size: x-small;" />
+                <MatTextField FullWidth="true" Label="Game Name" @bind-Value="@ViewModel.Data.GameName" />
+                <ValidationMessage For="@(() => @ViewModel.Data.GameName)" style="font-size: x-small;" />
               </EditForm>
               <MatButton Raised="true" TrailingIcon="@ViewModel.SubmitButtonIcon" OnClick="@ViewModel.OnSubmitButtonClicked"
   Disabled="@ViewModel.IsSubmitButtonDisabled">@ViewModel.SubmitButtonText

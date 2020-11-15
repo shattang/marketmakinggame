@@ -1,5 +1,6 @@
 @implements IDisposable
 @using Lib
+@using System
 @inject MainViewModel MainViewModel
 
 <MatDialog @bind-IsOpen="@MainViewModel.UserDataEditorViewModel.IsUserDataEditorOpen" CanBeClosed="false">
@@ -14,7 +15,7 @@
 
 <MatButton OnClick="@OpenUserDataEditorDialog">
   <img src="@MainViewModel.UserDataEditorViewModel.AvatarUrl" width=32 height=32 />
-  @MainViewModel.UserDataEditorViewModel.DisplayName
+  @MainViewModel.UserDataEditorViewModel.Data.DisplayName
 </MatButton>
 
 @code
@@ -39,7 +40,12 @@
   {
     var res = MainViewModel.UserDataEditorViewModel.CheckValid();
     if (!res.Success)
+    {
+      System.Console.WriteLine(res.ErrorMessages);
+      System.Console.WriteLine(MainViewModel.UserDataEditorViewModel.Data);
       return;
+    }
+    MainViewModel.UserDataEditorViewModel.SaveUserData();
     MainViewModel.UserDataEditorViewModel.IsUserDataEditorOpen = false;
   }
 

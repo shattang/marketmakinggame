@@ -22,9 +22,7 @@ namespace MarketMakingGame.Client.Lib
     private readonly ILocalStorageService _localStorage;
     private CreateGameRequest _request = null;
 
-    [Game.GameNameValidation]
-    public String GameName { get; set; }
-
+    public Game Data { get; set; } = new Game();
     public List<Game> CreatedGames { get; set; }
     public string SubmitButtonText { get; private set; } = DEFAULT_SUBMIT_BUTTON_TEXT;
     public string SubmitButtonIcon { get; private set; } = DEFAULT_SUBMIT_BUTTON_ICON;
@@ -36,11 +34,12 @@ namespace MarketMakingGame.Client.Lib
     {
       this.MainViewModel = mainView;
       this._localStorage = localStorage;
+      this.Data.GameId = Guid.NewGuid().ToBase62();
     }
 
     public override (bool Success, string ErrorMessages) CheckValid()
     {
-      return ValidationHelpers.ValidateObject(this);
+      return ValidationHelpers.ValidateObject(this.Data);
     }
 
     public override async Task InitializeAsync()
@@ -99,13 +98,13 @@ namespace MarketMakingGame.Client.Lib
       {
         Game = new Game()
         {
-          GameName = GameName
+          GameName = Data.GameName
         },
         Player = new Player()
         {
-          AvatarSeed = MainViewModel.UserDataEditorViewModel.AvatarSeed,
-          PlayerId = MainViewModel.UserDataEditorViewModel.UserId,
-          DisplayName = MainViewModel.UserDataEditorViewModel.DisplayName
+          AvatarSeed = MainViewModel.UserDataEditorViewModel.Data.AvatarSeed,
+          PlayerId = MainViewModel.UserDataEditorViewModel.Data.PlayerId,
+          DisplayName = MainViewModel.UserDataEditorViewModel.Data.DisplayName
         }
       };
 

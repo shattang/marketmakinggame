@@ -1,23 +1,21 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 using MarketMakingGame.Shared.Lib;
 
 namespace MarketMakingGame.Shared.Models
 {
   public class Game
   {
-    public class GameNameValidation : ChainedValidation
-    {
-      public GameNameValidation() : base(new RequiredAttribute(),
-        new StringLengthAttribute(20) { ErrorMessage = "Max 20 Characters" },
-        new MinLengthAttribute(3) { ErrorMessage = "Minimum 20 Characters" })
-      { }
-    }
-
+    [Required]
+    [StringLength(36, MinimumLength = 1)]
+    [Column(TypeName = "char")]
     public String GameId { get; set; }
 
-    [GameNameValidation]
+    [Required]
+    [StringLength(20, MinimumLength = 3)]
+    [Column(TypeName = "char")]
     public String GameName { get; set; }
 
     public int? NumberOfRounds { get; set; } = 5;

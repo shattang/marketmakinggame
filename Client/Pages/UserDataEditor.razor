@@ -11,8 +11,8 @@ style="border-radius: 10%;border-style: dotted;border-width: thin;" title="Click
     <div class="mat-layout-grid-cell mat-layout-grid-cell-span-6">
       <EditForm Model="MainViewModel.UserDataEditorViewModel">
         <DataAnnotationsValidator />
-        <MatStringField Label="Display Name" @bind-Value="@ViewModel.DisplayName" />
-        <ValidationMessage For="@(() => @ViewModel.DisplayName)" style="font-size: x-small;" />
+        <MatStringField Label="Display Name" @bind-Value="@ViewModel.Data.DisplayName" />
+        <ValidationMessage For="@(() => @ViewModel.Data.DisplayName)" style="font-size: x-small;" />
       </EditForm>
     </div>
   </div>
