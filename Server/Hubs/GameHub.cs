@@ -81,7 +81,7 @@ namespace MarketMakingGame.Server.Hubs
 
     public async Task CreateGame(CreateGameRequest request)
     {
-      var resp = await _gameService.CreateGame(request);
+      var resp = await _gameService.CreateGameAsync(request);
       if (resp.IsSuccess)
       {
         await AddMembership(resp.GameId, request.Player.PlayerId, Context.ConnectionId);

@@ -82,7 +82,7 @@ namespace MarketMakingGame.Server.Lib
       };
     }
 
-    public async Task<CreateGameResponse> CreateGame(CreateGameRequest request)
+    public async Task<CreateGameResponse> CreateGameAsync(CreateGameRequest request)
     {
       _logger.LogInformation("CreateGame: Request={}", request);
       var resp = new CreateGameResponse() { RequestId = request.RequestId };
@@ -112,7 +112,7 @@ namespace MarketMakingGame.Server.Lib
       }
       catch (Exception ex)
       {
-        _logger.LogError(ex, nameof(CreateGame));
+        _logger.LogError(ex, nameof(CreateGameAsync));
         resp.ErrorMessage = $"Error: {ex.GetType().Name}({ex.Message})";
       }
 
