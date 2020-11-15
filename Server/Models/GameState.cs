@@ -10,6 +10,8 @@ namespace MarketMakingGame.Server.Models
   {
     public int GameStateId { get; set; }
 
+    public bool IsFinished { get; set; }
+    
     public string GameId { get; set; }
     public Game Game { get; set; }
 

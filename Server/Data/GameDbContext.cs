@@ -31,9 +31,13 @@ namespace MarketMakingGame.Server.Data
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
       modelBuilder.ApplyConfiguration(new CardConfiguration());
-
+      
       modelBuilder.Entity<GameState>()
         .HasIndex(x => new { x.GameId, x.PlayerId })
+        .IsUnique();
+
+      modelBuilder.Entity<PlayerState>()
+        .HasIndex(x => new { x.GameStateId, x.PlayerId })
         .IsUnique();
     }
   }

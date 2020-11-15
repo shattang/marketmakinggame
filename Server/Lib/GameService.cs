@@ -93,6 +93,14 @@ namespace MarketMakingGame.Server.Lib
         return resp;
       }
 
+      var numPlayerGames = DBContext.GameStates
+        .Count(x => x.PlayerId == request.Player.PlayerId && !x.IsFinished);
+      if (numPlayerGames > 3)
+      {
+        resp.ErrorMessage = "Too many active games";
+        return resp;
+      }
+
       var gameEngine = new GameEngine(_loggerProvider, this);
       try
       {
