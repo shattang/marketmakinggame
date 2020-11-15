@@ -81,6 +81,7 @@ namespace MarketMakingGame.Client.Lib
         else
         {
           IsCreateGameFailedDialogVisible = true;
+          CreateGameFailedDialogMessage = response.ErrorMessage;
           InvokeStateChanged(EventArgs.Empty);
         }
       }
@@ -129,8 +130,8 @@ namespace MarketMakingGame.Client.Lib
       if (_request != null)
       {
         ResetRequest();
-        CreateGameFailedDialogMessage = DEFAULT_REQUEST_FAILED_MESSAGE;
         IsCreateGameFailedDialogVisible = true;
+        CreateGameFailedDialogMessage = DEFAULT_REQUEST_FAILED_MESSAGE;
         InvokeStateChanged(EventArgs.Empty);
       }
     }
