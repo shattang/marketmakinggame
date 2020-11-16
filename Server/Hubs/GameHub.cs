@@ -45,28 +45,14 @@ namespace MarketMakingGame.Server.Hubs
       }
     }
 
-    private void HandleGameUpdate(string gameId, BaseResponse resp)
+    private void HandleGameUpdate(GameUpdateResponse resp)
     {
-      try
-      {
-        _ = Clients.Group(gameId).SendAsync("OnGameUpdate", resp);
-      }
-      catch (Exception ex)
-      {
-        _logger.LogError(ex, nameof(HandleGameUpdate));
-      }
+      _ = Clients.Group(resp.GameId).SendAsync("OnGameUpdate", resp);
     }
 
-    private void HandlePlayerUpdate(string gameId, string playerId, BaseResponse resp)
+    private void HandlePlayerUpdate(PlayerUpdateResponse resp)
     {
-      try
-      {
-        _ = Clients.Group($"{gameId}.{playerId}").SendAsync("OnPlayerUpdate", resp);
-      }
-      catch (Exception ex)
-      {
-        _logger.LogError(ex, nameof(HandleGameUpdate));
-      }
+      _ = Clients.Group($"{resp.GameId}.{resp.PlayerId}").SendAsync("OnPlayerUpdate", resp);
     }
 
     public GetCardsResponse GetCards(GetCardsRequest request)
@@ -81,7 +67,17 @@ namespace MarketMakingGame.Server.Hubs
 
     public async Task CreateGame(CreateGameRequest request)
     {
-      var resp = await _gameService.CreateGameAsync(request);
+      CreateGameResponse resp;
+      try
+      {
+        resp = await _gameService.CreateGameAsync(request);
+      }
+      catch (Exception ex)
+      {
+        _logger.LogError(ex, nameof(CreateGame));
+        resp = new CreateGameResponse() { ErrorMessage = $"{ex.GetType()}: {ex.Message}" };
+      }
+
       if (resp.IsSuccess)
       {
         await AddMembership(resp.GameId, request.Player.PlayerId, Context.ConnectionId);
@@ -93,7 +89,17 @@ namespace MarketMakingGame.Server.Hubs
 
     public async Task JoinGame(JoinGameRequest request)
     {
-      var resp = _gameService.JoinGame(request);
+      JoinGameResponse resp;
+      try
+      {
+        resp = await _gameService.JoinGame(request);
+      }
+      catch (Exception ex)
+      {
+        _logger.LogError(ex, nameof(JoinGame));
+        resp = new JoinGameResponse() { ErrorMessage = $"{ex.GetType()}: {ex.Message}" };
+      }
+
       if (resp.IsSuccess)
       {
         await AddMembership(request.GameId, request.Player.PlayerId, Context.ConnectionId);

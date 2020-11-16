@@ -12,8 +12,8 @@ namespace MarketMakingGame.Server.Migrations
                 {
                     CardId = table.Column<int>(nullable: false)
                         .Annotation("Sqlite:Autoincrement", true),
-                    CardImageUrl = table.Column<string>(nullable: true),
-                    CardDescription = table.Column<string>(nullable: true),
+                    CardImageUrl = table.Column<string>(nullable: false),
+                    CardDescription = table.Column<string>(nullable: false),
                     CardValue = table.Column<double>(nullable: false)
                 },
                 constraints: table =>
@@ -25,8 +25,8 @@ namespace MarketMakingGame.Server.Migrations
                 name: "Games",
                 columns: table => new
                 {
-                    GameId = table.Column<string>(type: "char", unicode: false, fixedLength: true, maxLength: 22, nullable: false),
-                    GameName = table.Column<string>(nullable: true),
+                    GameId = table.Column<string>(type: "char", maxLength: 36, nullable: false),
+                    GameName = table.Column<string>(type: "char", maxLength: 20, nullable: false),
                     NumberOfRounds = table.Column<int>(nullable: true),
                     MinQuoteWidth = table.Column<double>(nullable: true),
                     MaxQuoteWidth = table.Column<double>(nullable: true)
@@ -40,9 +40,9 @@ namespace MarketMakingGame.Server.Migrations
                 name: "Players",
                 columns: table => new
                 {
-                    PlayerId = table.Column<string>(type: "char", unicode: false, fixedLength: true, maxLength: 22, nullable: false),
-                    DisplayName = table.Column<string>(nullable: true),
-                    AvatarSeed = table.Column<string>(nullable: true)
+                    PlayerId = table.Column<string>(type: "char", maxLength: 36, nullable: false),
+                    DisplayName = table.Column<string>(type: "char", maxLength: 20, nullable: false),
+                    AvatarSeed = table.Column<string>(type: "char", maxLength: 100, nullable: false)
                 },
                 constraints: table =>
                 {

@@ -24,9 +24,9 @@ namespace MarketMakingGame.Server.Lib
 
     internal List<Card> Cards { get; set; }
 
-    public event Action<string, BaseResponse> OnGameUpdate;
+    public event Action<GameUpdateResponse> OnGameUpdate;
 
-    public event Action<string, string, BaseResponse> OnPlayerUpdate;
+    public event Action<PlayerUpdateResponse> OnPlayerUpdate;
 
     public GameService(ILoggerProvider loggerProvider)
     {
@@ -86,7 +86,7 @@ namespace MarketMakingGame.Server.Lib
     {
       _logger.LogInformation("CreateGame: Request={}", request);
       var resp = new CreateGameResponse() { RequestId = request.RequestId };
-      
+
       if (String.IsNullOrWhiteSpace(request.Game.GameName))
       {
         resp.ErrorMessage = "Invalid GameName";
@@ -103,23 +103,15 @@ namespace MarketMakingGame.Server.Lib
       }
 
       var gameEngine = new GameEngine(_loggerProvider, this);
-      try
-      {
-        await gameEngine.InitializeAsync(request);
-        GameEngines[gameEngine.Game.GameId] = gameEngine;
-        resp.IsSuccess = true;
-        resp.GameId = gameEngine.Game.GameId;
-      }
-      catch (Exception ex)
-      {
-        _logger.LogError(ex, nameof(CreateGameAsync));
-        resp.ErrorMessage = $"Error: {ex.GetType().Name}({ex.Message})";
-      }
+      await gameEngine.InitializeGameStateAsync(request);
+      GameEngines[gameEngine.Game.GameId] = gameEngine;
+      resp.IsSuccess = true;
+      resp.GameId = gameEngine.Game.GameId;
 
       return resp;
     }
 
-    public JoinGameResponse JoinGame(JoinGameRequest request)
+    public async Task<JoinGameResponse> JoinGame(JoinGameRequest request)
     {
       _logger.LogInformation("JoinGame {}", request);
 
@@ -131,30 +123,52 @@ namespace MarketMakingGame.Server.Lib
         return resp;
       }
 
-      var game = GameEngines.GetValueOrDefault(request.GameId);
-      if (game == null)
+      var gameEngine = GameEngines.GetValueOrDefault(request.GameId);
+      if (gameEngine == null)
       {
-        
+        var lookup = DBContext.GameStates
+          .FirstOrDefault(x => x.PlayerId == request.Player.PlayerId && x.GameId == request.GameId);
+        if (lookup == null)
+        {
+          resp.ErrorMessage = "GameId not found";
+          return resp;
+        }
+
+        gameEngine = new GameEngine(_loggerProvider, this, lookup);
       }
 
+      await gameEngine.JoinGameAsync(request);
       resp.IsSuccess = true;
-      //TODO
       return resp;
     }
 
-    private void InvokeOnGameUpdate(string gameId, BaseResponse response)
+    private void InvokeOnGameUpdate(GameUpdateResponse response)
     {
       if (OnGameUpdate != null)
       {
-        OnGameUpdate(gameId, response);
+        try
+        {
+          OnGameUpdate(response);
+        }
+        catch (Exception ex)
+        {
+          _logger.LogError(ex, nameof(InvokeOnGameUpdate));
+        }
       }
     }
 
-    private void InvokeOnGameUpdate(string gameId, string playerId, BaseResponse response)
+    private void InvokeOnGameUpdate(PlayerUpdateResponse response)
     {
       if (OnPlayerUpdate != null)
       {
-        OnPlayerUpdate(gameId, playerId, response);
+        try
+        {
+          OnPlayerUpdate(response);
+        }
+        catch (Exception ex)
+        {
+          _logger.LogError(ex, nameof(InvokeOnGameUpdate));
+        }
       }
     }
 

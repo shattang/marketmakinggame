@@ -9,7 +9,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace MarketMakingGame.Server.Migrations
 {
     [DbContext(typeof(GameDbContext))]
-    [Migration("20201115060554_InitialCreate")]
+    [Migration("20201116160540_InitialCreate")]
     partial class InitialCreate
     {
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -136,9 +136,11 @@ namespace MarketMakingGame.Server.Migrations
                         .HasColumnType("INTEGER");
 
                     b.Property<string>("CardDescription")
+                        .IsRequired()
                         .HasColumnType("TEXT");
 
                     b.Property<string>("CardImageUrl")
+                        .IsRequired()
                         .HasColumnType("TEXT");
 
                     b.Property<double>("CardValue")
@@ -526,12 +528,12 @@ namespace MarketMakingGame.Server.Migrations
                 {
                     b.Property<string>("GameId")
                         .HasColumnType("char")
-                        .IsFixedLength(true)
-                        .HasMaxLength(22)
-                        .IsUnicode(false);
+                        .HasMaxLength(36);
 
                     b.Property<string>("GameName")
-                        .HasColumnType("TEXT");
+                        .IsRequired()
+                        .HasColumnType("char")
+                        .HasMaxLength(20);
 
                     b.Property<double?>("MaxQuoteWidth")
                         .HasColumnType("REAL");
@@ -551,15 +553,17 @@ namespace MarketMakingGame.Server.Migrations
                 {
                     b.Property<string>("PlayerId")
                         .HasColumnType("char")
-                        .IsFixedLength(true)
-                        .HasMaxLength(22)
-                        .IsUnicode(false);
+                        .HasMaxLength(36);
 
                     b.Property<string>("AvatarSeed")
-                        .HasColumnType("TEXT");
+                        .IsRequired()
+                        .HasColumnType("char")
+                        .HasMaxLength(100);
 
                     b.Property<string>("DisplayName")
-                        .HasColumnType("TEXT");
+                        .IsRequired()
+                        .HasColumnType("char")
+                        .HasMaxLength(20);
 
                     b.HasKey("PlayerId");
 
