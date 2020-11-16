@@ -7,8 +7,6 @@ namespace MarketMakingGame.Shared.Messages
   {
     public string GameId { get; set; }
 
-    public string CorrelationId { get; set; }
-
     public override string ToString()
     {
       return this.ToStringWithProperties();

@@ -67,46 +67,52 @@ namespace MarketMakingGame.Server.Hubs
 
     public async Task CreateGame(CreateGameRequest request)
     {
-      CreateGameResponse resp;
+      var connectionId = Context.ConnectionId;
+      async Task InvokeOnCreateGameResponse(CreateGameResponse resp)
+      {
+        if (resp.IsSuccess)
+        {
+          await AddMembership(resp.GameId, request.Player.PlayerId, connectionId);
+        }
+        _logger.LogInformation("Sending Response: {}", resp);
+        await Clients.Caller.SendAsync("OnCreateGameResponse", resp);
+      }
+
       try
       {
-        resp = await _gameService.CreateGameAsync(request);
+        await _gameService.CreateGameAsync(request, InvokeOnCreateGameResponse);
       }
       catch (Exception ex)
       {
         _logger.LogError(ex, nameof(CreateGame));
-        resp = new CreateGameResponse() { ErrorMessage = $"{ex.GetType()}: {ex.Message}" };
+        await InvokeOnCreateGameResponse(new CreateGameResponse()
+        { ErrorMessage = $"{ex.GetType()}: {ex.Message}" });
       }
-
-      if (resp.IsSuccess)
-      {
-        await AddMembership(resp.GameId, request.Player.PlayerId, Context.ConnectionId);
-      }
-
-      _logger.LogInformation("Sending Response: {}", resp);
-      await Clients.Caller.SendAsync("OnCreateGameResponse", resp);
     }
 
     public async Task JoinGame(JoinGameRequest request)
     {
-      JoinGameResponse resp;
+      var connectionId = Context.ConnectionId;
+      async Task InvokeOnJoinGameResponse(JoinGameResponse resp)
+      {
+        if (resp.IsSuccess)
+        {
+          await AddMembership(request.GameId, request.Player.PlayerId, Context.ConnectionId);
+        }
+        _logger.LogInformation("Sending Response: {}", resp);
+        await Clients.Caller.SendAsync("OnJoinGameResponse", resp);
+      }
+
       try
       {
-        resp = await _gameService.JoinGame(request);
+        await _gameService.JoinGameAsync(request, InvokeOnJoinGameResponse);
       }
       catch (Exception ex)
       {
         _logger.LogError(ex, nameof(JoinGame));
-        resp = new JoinGameResponse() { ErrorMessage = $"{ex.GetType()}: {ex.Message}" };
+        await InvokeOnJoinGameResponse(new JoinGameResponse()
+        { ErrorMessage = $"{ex.GetType()}: {ex.Message}" });
       }
-
-      if (resp.IsSuccess)
-      {
-        await AddMembership(request.GameId, request.Player.PlayerId, Context.ConnectionId);
-      }
-
-      _logger.LogInformation("Sending Response: {}", resp);
-      await Clients.Caller.SendAsync("OnJoinGameResponse", resp);
     }
 
     private async Task AddMembership(string gameId, string playerId, string connectionId)

@@ -17,9 +17,7 @@ namespace MarketMakingGame.Server.Lib
     private ILogger _logger;
     private GameService _service;
 
-    private GameState GameState { get; set; }
-
-    public Game Game => GameState.Game;
+    public GameState GameState { get; set; }
 
     public GameEngine(ILoggerProvider loggerProvider, GameService service, GameState gameState = null)
     {
@@ -28,7 +26,7 @@ namespace MarketMakingGame.Server.Lib
       GameState = gameState;
     }
 
-    public async Task InitializeGameStateAsync(CreateGameRequest request)
+    public async Task<PlayerState> CreateGameAsync(CreateGameRequest request)
     {
       request.Game.GameId = Guid.NewGuid().ToBase62();
       await _service.DBContext.Games.AddAsync(request.Game);
@@ -39,17 +37,19 @@ namespace MarketMakingGame.Server.Lib
         await _service.DBContext.Players.AddAsync(request.Player);
       }
 
+      PlayerState playerState = new PlayerState()
+      {
+        PlayerId = request.Player.PlayerId,
+        PlayerCardCardId = _service.UnopenedCard.CardId
+      };
+
       GameState = new GameState()
       {
         GameId = request.Game.GameId,
         PlayerId = request.Player.PlayerId,
         PlayerStates = new List<PlayerState>()
         {
-          new PlayerState()
-          {
-            PlayerId = request.Player.PlayerId,
-            PlayerCardCardId = _service.UnopenedCard.CardId
-          }
+          playerState
         },
         RoundStates = new List<RoundState>(),
         Trades = new List<Trade>()
@@ -59,9 +59,10 @@ namespace MarketMakingGame.Server.Lib
       await _service.DBContext.SaveChangesAsync();
 
       _logger.LogInformation("Added GameState: GameStateId={}", GameState.GameStateId);
+      return playerState;
     }
 
-    public async Task JoinGameAsync(JoinGameRequest request)
+    public async Task<PlayerState> JoinGameAsync(JoinGameRequest request)
     {
       var playerState = GameState.PlayerStates
       .FirstOrDefault(x => x.Player.PlayerId == request.Player.PlayerId);
@@ -78,11 +79,23 @@ namespace MarketMakingGame.Server.Lib
         await _service.DBContext.SaveChangesAsync();
         _logger.LogInformation("Added PlayerState: PlayerStateId={}", playerState.PlayerStateId);
       }
+
+      return playerState;;
     }
 
-    public async Task DealPlayerCards()
+    public async Task<bool> DealPlayerCards()
     {
+      var toDeal = GameState.PlayerStates
+        .Select(x => x.PlayerCardCardId == _service.UnopenedCard.CardId).ToList();
       
+      
+
+      return toDeal.Count > 0;
+    }
+
+    public async Task<bool> DealCommunityCard()
+    {
+      throw new NotImplementedException();
     }
   }
 }

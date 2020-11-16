@@ -10,11 +10,11 @@ namespace MarketMakingGame.Server.Models
     public int GameStateId { get; set; }
     public GameState GameState { get; set; }
 
-    public string InitiatingPlayerPlayerId { get; set; }
-    public Player InitiatingPlayer { get; set; }
+    public int InitiatorPlayerStateId { get; set; }
+    public PlayerState Initiator { get; set; }
 
-    public string TargetPlayerPlayerId { get; set; }
-    public Player TargetPlayer { get; set; }
+    public int TargetPlayerStateId { get; set; }
+    public Player Target { get; set; }
 
     public bool IsBuy { get; set; }
 

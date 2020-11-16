@@ -11,7 +11,7 @@ namespace MarketMakingGame.Server.Models
     public int GameStateId { get; set; }
 
     public bool IsFinished { get; set; }
-    
+
     public string GameId { get; set; }
     public Game Game { get; set; }
 
@@ -23,6 +23,10 @@ namespace MarketMakingGame.Server.Models
     public List<RoundState> RoundStates { get; set; }
 
     public List<Trade> Trades { get; set; }
+
+    public double? BestCurrentAsk { get; set; }
+
+    public double? BestCurrentBid { get; set; }
 
     public override string ToString()
     {

@@ -9,8 +9,6 @@ namespace MarketMakingGame.Shared.Messages
 
     public string PlayerId { get; set; }
 
-    public int PlayerPublicId { get; set; }
-
     public int CardId { get; set; }
 
     public override string ToString()

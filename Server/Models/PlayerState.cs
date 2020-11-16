@@ -22,6 +22,10 @@ namespace MarketMakingGame.Server.Models
 
     public double? CurrentAsk { get; set; }
 
+    public double? PositionAvgPrice { get; set; }
+
+    public double? PositionQty { get; set; }
+
     public override string ToString()
     {
       return this.ToStringWithProperties();

@@ -9,11 +9,13 @@ using Microsoft.Extensions.Logging;
 using MarketMakingGame.Shared.Messages;
 using MarketMakingGame.Shared.Lib;
 using System.Collections.Concurrent;
+using Microsoft.EntityFrameworkCore;
 
 namespace MarketMakingGame.Server.Lib
 {
   public class GameService : IDisposable
   {
+    private const int MAX_GAMES_PER_USER = 2;
     private readonly ILoggerProvider _loggerProvider;
     private readonly ILogger _logger;
     internal GameDbContext DBContext { get; }
@@ -82,7 +84,7 @@ namespace MarketMakingGame.Server.Lib
       };
     }
 
-    public async Task<CreateGameResponse> CreateGameAsync(CreateGameRequest request)
+    public async Task CreateGameAsync(CreateGameRequest request, Func<CreateGameResponse, Task> responseHandler)
     {
       _logger.LogInformation("CreateGame: Request={}", request);
       var resp = new CreateGameResponse() { RequestId = request.RequestId };
@@ -90,28 +92,32 @@ namespace MarketMakingGame.Server.Lib
       if (String.IsNullOrWhiteSpace(request.Game.GameName))
       {
         resp.ErrorMessage = "Invalid GameName";
-        return resp;
+        await responseHandler(resp);
+        return;
       }
 
       var numPlayerGames = DBContext.GameStates
         .Count(x => x.PlayerId == request.Player.PlayerId && !x.IsFinished);
       _logger.LogInformation($"numPlayerGames={numPlayerGames}");
-      if (numPlayerGames > 2)
+      if (numPlayerGames > MAX_GAMES_PER_USER)
       {
         resp.ErrorMessage = "Too many active games for player";
-        return resp;
+        await responseHandler(resp);
+        return;
       }
 
       var gameEngine = new GameEngine(_loggerProvider, this);
-      await gameEngine.InitializeGameStateAsync(request);
-      GameEngines[gameEngine.Game.GameId] = gameEngine;
+      var playerState = await gameEngine.CreateGameAsync(request);
+      GameEngines[gameEngine.GameState.GameId] = gameEngine;
       resp.IsSuccess = true;
-      resp.GameId = gameEngine.Game.GameId;
+      resp.GameId = gameEngine.GameState.GameId;
+      await responseHandler(resp);
 
-      return resp;
+      InvokeOnPlayerUpdate(MakePlayerUpdateResponse(playerState));
+      InvokeOnGameUpdate(MakeGameUpdateResponse(gameEngine.GameState));
     }
 
-    public async Task<JoinGameResponse> JoinGame(JoinGameRequest request)
+    public async Task JoinGameAsync(JoinGameRequest request, Func<JoinGameResponse, Task> responseHandler)
     {
       _logger.LogInformation("JoinGame {}", request);
 
@@ -120,26 +126,144 @@ namespace MarketMakingGame.Server.Lib
       if (String.IsNullOrWhiteSpace(request.GameId))
       {
         resp.ErrorMessage = "Invalid GameId";
-        return resp;
+        await responseHandler(resp);
+        return;
       }
 
       var gameEngine = GameEngines.GetValueOrDefault(request.GameId);
       if (gameEngine == null)
       {
-        var lookup = DBContext.GameStates
+        var gameState = DBContext.GameStates
           .FirstOrDefault(x => x.PlayerId == request.Player.PlayerId && x.GameId == request.GameId);
-        if (lookup == null)
+        if (gameState == null)
         {
           resp.ErrorMessage = "GameId not found";
-          return resp;
+          await responseHandler(resp);
+          return;
         }
 
-        gameEngine = new GameEngine(_loggerProvider, this, lookup);
+        gameEngine = new GameEngine(_loggerProvider, this, gameState);
       }
 
-      await gameEngine.JoinGameAsync(request);
+      var playerState = await gameEngine.JoinGameAsync(request);
       resp.IsSuccess = true;
-      return resp;
+      resp.Game = gameEngine.GameState.Game;
+      resp.PlayerPublicId = playerState.PlayerStateId;
+      await responseHandler(resp);
+
+      InvokeOnPlayerUpdate(MakePlayerUpdateResponse(playerState));
+      InvokeOnGameUpdate(MakeGameUpdateResponse(gameEngine.GameState));
+    }
+
+    public async Task DealPlayerCards(DealPlayerCardsRequest request, Func<BaseResponse, Task> responseHandler)
+    {
+      _logger.LogInformation("DealPlayerCards {}", request);
+      
+      var resp = new BaseResponse() { RequestId = request.RequestId };
+
+      var gameEngine = GameEngines.GetValueOrDefault(request.GameId);
+      if (gameEngine == null)
+      {
+        resp.ErrorMessage = "GameId not found";
+        await responseHandler(resp);
+        return;
+      }
+
+      if (gameEngine.GameState.PlayerId != request.PlayerId)
+      {
+        resp.ErrorMessage = "Only dealer can initiate this request";
+        await responseHandler(resp);
+        return;
+      }
+
+      var changed = await gameEngine.DealPlayerCards();
+      resp.IsSuccess = true;
+      await responseHandler(resp);
+
+      if (changed)
+      {
+        foreach(var playerState in gameEngine.GameState.PlayerStates)
+        {
+          InvokeOnPlayerUpdate(MakePlayerUpdateResponse(playerState));
+        }
+      }   
+    }
+
+    public async Task DealCommunityCard(DealCommunityCardRequest request, Func<BaseResponse, Task> responseHandler)
+    {
+      _logger.LogInformation("DealCommunityCard {}", request);
+      
+      var resp = new BaseResponse() { RequestId = request.RequestId };
+
+      var gameEngine = GameEngines.GetValueOrDefault(request.GameId);
+      if (gameEngine == null)
+      {
+        resp.ErrorMessage = "GameId not found";
+        await responseHandler(resp);
+        return;
+      }
+
+      if (gameEngine.GameState.PlayerId != request.PlayerId)
+      {
+        resp.ErrorMessage = "Only dealer can initiate this request";
+        await responseHandler(resp);
+        return;
+      }
+
+      var changed = await gameEngine.DealCommunityCard();
+      resp.IsSuccess = true;
+      await responseHandler(resp);
+
+      if (changed)
+      {
+        InvokeOnGameUpdate(MakeGameUpdateResponse(gameEngine.GameState));
+      }   
+    }
+
+    private GameUpdateResponse MakeGameUpdateResponse(Models.GameState gameState)
+    {
+      var ret = new GameUpdateResponse() { GameId = gameState.GameId };
+      ret.BestCurrentAsk = gameState.BestCurrentAsk;
+      ret.BestCurrentBid = gameState.BestCurrentBid;
+      ret.CommunityCardIds = gameState.RoundStates.Select(x => x.CommunityCardCardId).ToList();
+      ret.PlayerPublicStates = gameState.PlayerStates.Select(x => MakePlayerPublicState(x)).ToList();
+      ret.TradeUpdates = gameState.Trades.Select(x => MakeTradeUpdate(x)).ToList();
+      ret.IsFinished = gameState.IsFinished;
+      ret.IsSuccess = true;
+      return ret;
+    }
+
+    private TradeUpdate MakeTradeUpdate(Models.Trade x)
+    {
+      return new TradeUpdate()
+      {
+        InitiatorPlayerPublicId = x.InitiatorPlayerStateId,
+        TargetPlayerPublicId = x.TargetPlayerStateId,
+        IsBuy = x.IsBuy,
+        TradePrice = x.TradePrice
+      };
+    }
+
+    private PlayerPublicState MakePlayerPublicState(Models.PlayerState x)
+    {
+      return new PlayerPublicState()
+      {
+        AvatarSeed = x.Player.AvatarSeed,
+        CurrentAsk = x.CurrentAsk,
+        CurrentBid = x.CurrentBid,
+        DisplayName = x.Player.DisplayName,
+        PlayerPublicId = x.PlayerStateId,
+        PositionAvgPrice = x.PositionAvgPrice,
+        PositionQty = x.PositionQty
+      };
+    }
+
+    private PlayerUpdateResponse MakePlayerUpdateResponse(Models.PlayerState playerState)
+    {
+      var ret = new PlayerUpdateResponse() { GameId = playerState.GameState.GameId, PlayerId = playerState.PlayerId };
+      ret.CardId = playerState.PlayerCardCardId;
+      ret.IsSuccess = true;
+      return ret;
     }
 
     private void InvokeOnGameUpdate(GameUpdateResponse response)
@@ -157,7 +281,7 @@ namespace MarketMakingGame.Server.Lib
       }
     }
 
-    private void InvokeOnGameUpdate(PlayerUpdateResponse response)
+    private void InvokeOnPlayerUpdate(PlayerUpdateResponse response)
     {
       if (OnPlayerUpdate != null)
       {
@@ -167,7 +291,7 @@ namespace MarketMakingGame.Server.Lib
         }
         catch (Exception ex)
         {
-          _logger.LogError(ex, nameof(InvokeOnGameUpdate));
+          _logger.LogError(ex, nameof(InvokeOnPlayerUpdate));
         }
       }
     }
