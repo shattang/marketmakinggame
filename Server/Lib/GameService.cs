@@ -114,7 +114,7 @@ namespace MarketMakingGame.Server.Lib
       await responseHandler(resp);
 
       InvokeOnPlayerUpdate(MakePlayerUpdateResponse(playerState));
-      InvokeOnGameUpdate(MakeGameUpdateResponse(gameEngine.GameState));
+      InvokeOnGameUpdate(MakeGameUpdateResponse(gameEngine.GameState, gameEngine.GameState.Trades));
     }
 
     public async Task JoinGameAsync(JoinGameRequest request, Func<JoinGameResponse, Task> responseHandler)
@@ -151,7 +151,7 @@ namespace MarketMakingGame.Server.Lib
       await responseHandler(resp);
 
       InvokeOnPlayerUpdate(MakePlayerUpdateResponse(playerState));
-      InvokeOnGameUpdate(MakeGameUpdateResponse(gameEngine.GameState));
+      InvokeOnGameUpdate(MakeGameUpdateResponse(gameEngine.GameState, gameEngine.GameState.Trades));
     }
 
     public async Task DealAsync(DealerRequest request, Func<DealerResponse, Task> responseHandler)
@@ -201,6 +201,16 @@ namespace MarketMakingGame.Server.Lib
       {
         var locked = request.RequestType == DealerRequest.DealerRequestType.LockTrading ? true : false;
         (resp.IsSuccess, resp.ErrorMessage) = await gameEngine.LockTrading(locked);
+        await responseHandler(resp);
+
+        if (resp.IsSuccess)
+        {
+          InvokeOnGameUpdate(MakeGameUpdateResponse(gameEngine.GameState));
+        }
+      }
+      else if (request.RequestType == DealerRequest.DealerRequestType.FinishGame)
+      {
+        (resp.IsSuccess, resp.ErrorMessage) = await gameEngine.FinishGame();
         await responseHandler(resp);
 
         if (resp.IsSuccess)
@@ -267,12 +277,15 @@ namespace MarketMakingGame.Server.Lib
       var ret = new GameUpdateResponse() { GameId = gameState.GameId };
       ret.BestCurrentAsk = gameState.BestCurrentAsk;
       ret.BestCurrentBid = gameState.BestCurrentBid;
-      ret.CommunityCardIds = gameState.RoundStates.Select(x => x.CommunityCardCardId).ToList();
-      ret.PlayerPublicStates = gameState.PlayerStates.Select(x => MakePlayerPublicState(x)).ToList();
+      if (gameState.RoundStates != null)
+        ret.CommunityCardIds = gameState.RoundStates.Select(x => x.CommunityCardCardId).ToList();
+      if (gameState.PlayerStates != null)
+        ret.PlayerPublicStates = gameState.PlayerStates.Select(x => MakePlayerPublicState(x)).ToList();
       ret.TradeUpdates = trades == null ? null : trades.Select(x => MakeTradeUpdate(x)).ToList();
       ret.IsFinished = gameState.IsFinished;
       ret.IsTradingLocked = gameState.IsTradingLocked;
       ret.IsSuccess = true;
+      ret.SettlementPrice = gameState.SettlementPrice;
       return ret;
     }
 
@@ -283,7 +296,8 @@ namespace MarketMakingGame.Server.Lib
         InitiatorPlayerPublicId = x.InitiatorPlayerStateId,
         TargetPlayerPublicId = x.TargetPlayerStateId,
         IsBuy = x.IsBuy,
-        TradePrice = x.TradePrice
+        TradePrice = x.TradePrice,
+        TradeQty = x.TradeQty
       };
     }
 
@@ -297,7 +311,9 @@ namespace MarketMakingGame.Server.Lib
         DisplayName = x.Player.DisplayName,
         PlayerPublicId = x.PlayerStateId,
         PositionCashFlow = x.PositionCashFlow,
-        PositionQty = x.PositionQty
+        PositionQty = x.PositionQty,
+        SettlementPnl = x.SettlementPnl,
+        SettlementCardId = x.GameState.IsFinished ? x.PlayerCardCardId : null
       };
     }
 

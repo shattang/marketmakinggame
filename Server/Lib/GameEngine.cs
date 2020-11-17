@@ -147,6 +147,11 @@ namespace MarketMakingGame.Server.Lib
 
     public async Task<(bool, string)> UpdateQuote(UpdateQuoteRequest request)
     {
+      if (GameState.IsFinished)
+      {
+        return (false, "Game is marked finished by Dealer");
+      }
+
       var playerState = GameState.PlayerStates
         .FirstOrDefault(x => x.PlayerId == request.PlayerId);
 
@@ -211,6 +216,11 @@ namespace MarketMakingGame.Server.Lib
       if (GameState.IsTradingLocked)
       {
         return (false, "Trading is currently locked by Dealer", null);
+      }
+
+      if (GameState.IsFinished)
+      {
+        return (false, "Game is marked finished by Dealer", null);
       }
 
       var initiatorPlayer = GameState.PlayerStates
@@ -292,6 +302,38 @@ namespace MarketMakingGame.Server.Lib
       await _service.DBContext.SaveChangesAsync();
 
       return (true, null, trades);
+    }
+
+    public async Task<(bool, string)> FinishGame()
+    {
+      if (GameState.IsFinished)
+      {
+        return (false, "Game is already finished");
+      }
+
+      var settlementPrice = GameState.RoundStates
+        .Select(x => x.CommunityCard.CardValue)
+        .Concat(GameState.PlayerStates.Select(x => x.PlayerCard.CardValue))
+        .Sum();
+
+      GameState.SettlementPrice = settlementPrice;
+      
+      foreach(var playerState in GameState.PlayerStates)
+      {
+        if (playerState.PositionQty.HasValue && Math.Abs(playerState.PositionQty.Value) > 1E-6)
+        {
+          var positionPrice = (playerState.PositionCashFlow ?? 0) / playerState.PositionQty.Value;
+          playerState.SettlementPnl = (settlementPrice - positionPrice) * playerState.PositionQty.Value;
+        }
+        else
+        {
+          playerState.SettlementPnl = (playerState.PositionCashFlow ?? 0);
+        }
+      }
+
+      GameState.IsFinished = true;
+      await _service.DBContext.SaveChangesAsync();
+      return (true, null);
     }
   }
 }

@@ -37,6 +37,8 @@ namespace MarketMakingGame.Server.Models
 
     public bool IsTradingLocked { get; set; }
 
+    public double? SettlementPrice { get; set; }
+
     public override string ToString()
     {
       return this.ToStringWithProperties();
