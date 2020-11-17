@@ -22,7 +22,7 @@ namespace MarketMakingGame.Server.Models
 
     public double? CurrentAsk { get; set; }
 
-    public double? PositionAvgPrice { get; set; }
+    public double? PositionCashFlow { get; set; }
 
     public double? PositionQty { get; set; }
 

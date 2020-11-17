@@ -19,6 +19,8 @@ namespace MarketMakingGame.Shared.Messages
     public double? BestCurrentAsk { get; set; }
 
     public bool IsFinished { get; set; }
+    
+    public bool IsTradingLocked { get; set; }
 
     public override string ToString()
     {

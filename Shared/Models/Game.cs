@@ -24,6 +24,8 @@ namespace MarketMakingGame.Shared.Models
 
     public double? MaxQuoteWidth { get; set; } = 5;
 
+    public double? TradeQty { get; set; } = 100;
+
     public override string ToString()
     {
       return this.ToStringWithProperties();

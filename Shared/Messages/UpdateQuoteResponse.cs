@@ -4,14 +4,8 @@ using MarketMakingGame.Shared.Models;
 
 namespace MarketMakingGame.Shared.Messages
 {
-  public sealed class TradeRequest : BaseRequest
+  public sealed class UpdateQuoteResponse : BaseResponse
   {
-    public string PlayerId { get; set; }
-
-    public string GameId { get; set; }
-
-    public bool IsBuy { get; set; }
-
     public override string ToString()
     {
       return this.ToStringWithProperties();

@@ -28,6 +28,8 @@ namespace MarketMakingGame.Server.Models
 
     public double? BestCurrentBid { get; set; }
 
+    public bool IsTradingLocked { get; set; }
+
     public override string ToString()
     {
       return this.ToStringWithProperties();

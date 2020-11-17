@@ -4,19 +4,21 @@ using MarketMakingGame.Shared.Models;
 
 namespace MarketMakingGame.Shared.Messages
 {
-  public sealed class DealCardsRequest : BaseRequest
+  public sealed class DealerRequest : BaseRequest
   {
-    public enum DealCardsRequestType
+    public enum DealerRequestType
     {
-      Players,
-      Community
+      DealPlayerCards,
+      DealNextCommunityCard,
+      LockTrading, 
+      UnlockTrading
     }
 
     public string PlayerId { get; set; }
 
     public string GameId { get; set; }
 
-    public DealCardsRequestType RequestType { get; set;}
+    public DealerRequestType RequestType { get; set;}
 
     public override string ToString()
     {

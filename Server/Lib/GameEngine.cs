@@ -29,6 +29,10 @@ namespace MarketMakingGame.Server.Lib
 
     public async Task<PlayerState> CreateGameAsync(CreateGameRequest request)
     {
+      request.Game.MinQuoteWidth = Math.Max(request.Game.MinQuoteWidth ?? 0, 1);
+      request.Game.MaxQuoteWidth = Math.Max(request.Game.MaxQuoteWidth ?? 0, 1);
+      request.Game.NumberOfRounds = Math.Max(request.Game.NumberOfRounds ?? 0, 1);
+      request.Game.TradeQty = Math.Max(request.Game.TradeQty ?? 0, 1);
       request.Game.GameId = Guid.NewGuid().ToBase62();
       await _service.DBContext.Games.AddAsync(request.Game);
 
@@ -81,7 +85,7 @@ namespace MarketMakingGame.Server.Lib
         _logger.LogInformation("Added PlayerState: PlayerStateId={}", playerState.PlayerStateId);
       }
 
-      return playerState; ;
+      return playerState;
     }
 
     private void EnsureCardDeckInitialized()
@@ -104,33 +108,190 @@ namespace MarketMakingGame.Server.Lib
     public async Task<List<PlayerState>> DealPlayerCards()
     {
       EnsureCardDeckInitialized();
+
       var playersToDeal = GameState.PlayerStates
         .Where(x => x.PlayerCardCardId == _service.UnopenedCard.CardId).ToList();
 
-      foreach (var playerState in playersToDeal)
+      if (playersToDeal.Count > 0)
       {
-        var drawnCardId = _cardDeck.Draw();
-        playerState.PlayerCardCardId = drawnCardId;
+        foreach (var playerState in playersToDeal)
+        {
+          var drawnCardId = _cardDeck.Draw();
+          playerState.PlayerCardCardId = drawnCardId;
+        }
+
+        await _service.DBContext.SaveChangesAsync();
       }
 
-      await _service.DBContext.SaveChangesAsync();
       return playersToDeal;
     }
 
-    public async Task<bool> DealCommunityCard()
+    public async Task<(bool, string)> DealNextCommunityCard()
     {
       EnsureCardDeckInitialized();
 
-      var numOfDoneRounds = GameState.RoundStates
-        .Where(x => x.CommunityCardCardId != _service.UnopenedCard.CardId).Count();
-
-      if (numOfDoneRounds < GameState.Game.NumberOfRounds)
+      if (GameState.RoundStates.Count >= GameState.Game.NumberOfRounds)
       {
-        
+        return (false, "Cannot deal, All rounds are done");
       }
 
+      var roundState = new RoundState()
+      {
+        CommunityCardCardId = _cardDeck.Draw()
+      };
 
-      return false;
+      GameState.RoundStates.Add(roundState);
+      await _service.DBContext.SaveChangesAsync();
+      return (true, null);
+    }
+
+    public async Task<(bool, string)> UpdateQuote(UpdateQuoteRequest request)
+    {
+      var playerState = GameState.PlayerStates
+        .FirstOrDefault(x => x.PlayerId == request.PlayerId);
+
+      if (playerState == null)
+      {
+        return (false, "PlayerId not found");
+      }
+
+      var newAsk = request.CurrentAsk ?? playerState.CurrentAsk;
+      var newBid = request.CurrentBid ?? playerState.CurrentBid;
+
+      if (!(newAsk.HasValue && newBid.HasValue))
+      {
+        return (false, "Need to quote both Bid and Ask");
+      }
+
+      var quoteWidth = newAsk.Value - newBid.Value;
+      if (quoteWidth > GameState.Game.MaxQuoteWidth)
+      {
+        return (false, $"Quote width should be less than {GameState.Game.MaxQuoteWidth}");
+      }
+
+      if (quoteWidth < GameState.Game.MinQuoteWidth)
+      {
+        return (false, $"Quote width should be less than {GameState.Game.MinQuoteWidth}");
+      }
+
+      if (GameState.BestCurrentBid.HasValue && newAsk <= GameState.BestCurrentBid)
+      {
+        return (false, "Quote Ask Cannot Cross Best Bid");
+      }
+
+      if (GameState.BestCurrentAsk.HasValue && newBid >= GameState.BestCurrentAsk)
+      {
+        return (false, "Quote Bid Cannot Cross Best Ask");
+      }
+
+      playerState.CurrentAsk = newAsk;
+      playerState.CurrentBid = newBid;
+
+      GameState.BestCurrentAsk = GameState.PlayerStates.Select(x => x.CurrentAsk).Min();
+      GameState.BestCurrentBid = GameState.PlayerStates.Select(x => x.CurrentBid).Max();
+
+      await _service.DBContext.SaveChangesAsync();
+      return (true, null);
+    }
+
+    public async Task<(bool, string)> LockTrading(bool locked)
+    {
+      if (GameState.IsTradingLocked == locked)
+      {
+        return (false, "Trading is already " + (locked ? "Locked" : "Unlocked"));
+      }
+
+      GameState.IsTradingLocked = locked;
+      await _service.DBContext.SaveChangesAsync();
+      return (true, null);
+    }
+
+    public async Task<(bool, string, List<Trade>)> Trade(TradeRequest request)
+    {
+      if (GameState.IsTradingLocked)
+      {
+        return (false, "Trading is currently locked by Dealer", null);
+      }
+
+      var initiatorPlayer = GameState.PlayerStates
+        .FirstOrDefault(x => x.PlayerId == request.PlayerId);
+
+      if (initiatorPlayer == null)
+      {
+        return (false, "PlayerId not found", null);
+      }
+
+      if (!(initiatorPlayer.CurrentAsk.HasValue && initiatorPlayer.CurrentBid.HasValue))
+      {
+        return (false, "Need to set a Quote in order to Trade", null);
+      }
+
+      List<PlayerState> targetPlayers;
+      if (request.IsBuy)
+      {
+        if (!GameState.BestCurrentAsk.HasValue)
+        {
+          return (false, "No Best Ask Price Quoted to Buy", null);
+        }
+
+        targetPlayers = GameState.PlayerStates
+          .Where(x => x.PlayerStateId != initiatorPlayer.PlayerStateId &&
+            x.CurrentAsk.HasValue &&
+            Math.Abs(x.CurrentAsk.Value - GameState.BestCurrentAsk.Value) < 1E-6)
+          .ToList();
+
+      }
+      else
+      {
+        if (!GameState.BestCurrentBid.HasValue)
+        {
+          return (false, "No Best Bid Price Quoted to Sell", null);
+        }
+
+        targetPlayers = GameState.PlayerStates
+          .Where(x => x.PlayerStateId != initiatorPlayer.PlayerStateId &&
+            x.CurrentBid.HasValue &&
+            Math.Abs(x.CurrentBid.Value - GameState.BestCurrentBid.Value) < 1E-6)
+          .ToList();
+      }
+
+      if (targetPlayers.Count == 0)
+      {
+        return (false, "No Players to Trade with", null);
+      }
+
+      var trades = new List<Trade>();
+      var initiatorTradeQty = GameState.Game.TradeQty.Value;
+      var tradePrice = request.IsBuy ? GameState.BestCurrentAsk.Value : GameState.BestCurrentBid.Value;
+      var targetTradeQty = initiatorTradeQty / targetPlayers.Count;
+      foreach(var targetPlayer in targetPlayers)
+      {
+        var trade = new Trade()
+        {
+          InitiatorPlayerStateId = initiatorPlayer.PlayerStateId,
+          TargetPlayerStateId = targetPlayer.PlayerStateId,
+          IsBuy = request.IsBuy,
+          TradePrice = tradePrice,
+          TradeQty = targetTradeQty
+        };
+        trades.Add(trade);
+        GameState.Trades.Add(trade);
+
+        var currTargetPosQty = targetPlayer.PositionQty ?? 0;
+        var currTargetPosCashflow = targetPlayer.PositionCashFlow ?? 0;
+        var targetSide = request.IsBuy ? -1 : 1;
+        targetPlayer.PositionQty = currTargetPosQty + targetTradeQty * targetSide;
+        targetPlayer.PositionCashFlow = currTargetPosCashflow + targetTradeQty * tradePrice * targetSide;
+      }
+
+      var initiatorSide = request.IsBuy ? 1 : -1;
+      var currPosQty = initiatorPlayer.PositionQty ?? 0;
+      var currPosCashflow = initiatorPlayer.PositionCashFlow ?? 0;
+      initiatorPlayer.PositionQty = currPosQty + initiatorTradeQty * initiatorSide;
+      initiatorPlayer.PositionCashFlow = currPosCashflow + initiatorTradeQty * tradePrice * initiatorSide;
+      await _service.DBContext.SaveChangesAsync();
+
+      return (true, null, trades);
     }
   }
 }

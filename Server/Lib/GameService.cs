@@ -154,11 +154,11 @@ namespace MarketMakingGame.Server.Lib
       InvokeOnGameUpdate(MakeGameUpdateResponse(gameEngine.GameState));
     }
 
-    public async Task DealCards(DealCardsRequest request, Func<BaseResponse, Task> responseHandler)
+    public async Task DealAsync(DealerRequest request, Func<DealerResponse, Task> responseHandler)
     {
-      _logger.LogInformation("DealCards {}", request);
+      _logger.LogInformation("Deal {}", request);
 
-      var resp = new BaseResponse() { RequestId = request.RequestId };
+      var resp = new DealerResponse() { RequestId = request.RequestId };
 
       var gameEngine = GameEngines.GetValueOrDefault(request.GameId);
       if (gameEngine == null)
@@ -175,24 +175,35 @@ namespace MarketMakingGame.Server.Lib
         return;
       }
 
-      if (request.RequestType == DealCardsRequest.DealCardsRequestType.Players)
+      if (request.RequestType == DealerRequest.DealerRequestType.DealPlayerCards)
       {
-        var changed = await gameEngine.DealPlayerCards();
+        var updatedPlayers = await gameEngine.DealPlayerCards();
         resp.IsSuccess = true;
         await responseHandler(resp);
 
-        foreach (var playerState in changed)
+        foreach (var playerState in updatedPlayers)
         {
           InvokeOnPlayerUpdate(MakePlayerUpdateResponse(playerState));
         }
       }
-      else if (request.RequestType == DealCardsRequest.DealCardsRequestType.Community)
+      else if (request.RequestType == DealerRequest.DealerRequestType.DealNextCommunityCard)
       {
-        var changed = await gameEngine.DealCommunityCard();
-        resp.IsSuccess = true;
+        (resp.IsSuccess, resp.ErrorMessage) = await gameEngine.DealNextCommunityCard();
         await responseHandler(resp);
 
-        if (changed)
+        if (resp.IsSuccess)
+        {
+          InvokeOnGameUpdate(MakeGameUpdateResponse(gameEngine.GameState));
+        }
+      }
+      else if (request.RequestType == DealerRequest.DealerRequestType.LockTrading ||
+        request.RequestType == DealerRequest.DealerRequestType.UnlockTrading)
+      {
+        var locked = request.RequestType == DealerRequest.DealerRequestType.LockTrading ? true : false;
+        (resp.IsSuccess, resp.ErrorMessage) = await gameEngine.LockTrading(locked);
+        await responseHandler(resp);
+
+        if (resp.IsSuccess)
         {
           InvokeOnGameUpdate(MakeGameUpdateResponse(gameEngine.GameState));
         }
@@ -204,15 +215,63 @@ namespace MarketMakingGame.Server.Lib
       }
     }
 
-    private GameUpdateResponse MakeGameUpdateResponse(Models.GameState gameState)
+    public async Task UpdateQuoteAsync(UpdateQuoteRequest request, Func<UpdateQuoteResponse, Task> responseHandler)
+    {
+      _logger.LogInformation("UpdateQuote {}", request);
+
+      var resp = new UpdateQuoteResponse() { RequestId = request.RequestId };
+
+      var gameEngine = GameEngines.GetValueOrDefault(request.GameId);
+      if (gameEngine == null)
+      {
+        resp.ErrorMessage = "GameId not found";
+        await responseHandler(resp);
+        return;
+      }
+
+      (resp.IsSuccess, resp.ErrorMessage) = await gameEngine.UpdateQuote(request);
+      await responseHandler(resp);
+
+      if (resp.IsSuccess)
+      {
+        InvokeOnGameUpdate(MakeGameUpdateResponse(gameEngine.GameState));
+      }
+    }
+
+    public async Task TradeAsync(TradeRequest request, Func<TradeResponse, Task> responseHandler)
+    {
+      _logger.LogInformation("Trade {}", request);
+
+      var resp = new TradeResponse() { RequestId = request.RequestId };
+
+      var gameEngine = GameEngines.GetValueOrDefault(request.GameId);
+      if (gameEngine == null)
+      {
+        resp.ErrorMessage = "GameId not found";
+        await responseHandler(resp);
+        return;
+      }
+
+      List<Models.Trade> trades;
+      (resp.IsSuccess, resp.ErrorMessage, trades) = await gameEngine.Trade(request);
+      await responseHandler(resp);
+
+      if (resp.IsSuccess)
+      {
+        InvokeOnGameUpdate(MakeGameUpdateResponse(gameEngine.GameState, trades));
+      }
+    }
+
+    private GameUpdateResponse MakeGameUpdateResponse(Models.GameState gameState, List<Models.Trade> trades = null)
     {
       var ret = new GameUpdateResponse() { GameId = gameState.GameId };
       ret.BestCurrentAsk = gameState.BestCurrentAsk;
       ret.BestCurrentBid = gameState.BestCurrentBid;
       ret.CommunityCardIds = gameState.RoundStates.Select(x => x.CommunityCardCardId).ToList();
       ret.PlayerPublicStates = gameState.PlayerStates.Select(x => MakePlayerPublicState(x)).ToList();
-      ret.TradeUpdates = gameState.Trades.Select(x => MakeTradeUpdate(x)).ToList();
+      ret.TradeUpdates = trades == null ? null : trades.Select(x => MakeTradeUpdate(x)).ToList();
       ret.IsFinished = gameState.IsFinished;
+      ret.IsTradingLocked = gameState.IsTradingLocked;
       ret.IsSuccess = true;
       return ret;
     }
@@ -237,7 +296,7 @@ namespace MarketMakingGame.Server.Lib
         CurrentBid = x.CurrentBid,
         DisplayName = x.Player.DisplayName,
         PlayerPublicId = x.PlayerStateId,
-        PositionAvgPrice = x.PositionAvgPrice,
+        PositionCashFlow = x.PositionCashFlow,
         PositionQty = x.PositionQty
       };
     }

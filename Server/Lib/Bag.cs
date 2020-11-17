@@ -21,7 +21,6 @@ namespace MarketMakingGame.Server.Lib
     }
 
     private readonly object _lock = new object();
-    private int _totalItems = 0;
     private List<ItemCount> _items;
     private readonly Random _random;
     private readonly T _defaultValue;
@@ -35,7 +34,7 @@ namespace MarketMakingGame.Server.Lib
         .Where(x => x.Count > 0)
         .ToList();
       _items.TrimExcess();
-      _totalItems = _items.Select(x => x.Count).Sum();
+      
       _random = new Random();
       _defaultValue = defaultValue;
     }
@@ -55,7 +54,6 @@ namespace MarketMakingGame.Server.Lib
           if (selected.Count > 0)
           {
             selected.Count -= 1;
-            _totalItems -= 1;
             return selected.Item;
           }
         }
