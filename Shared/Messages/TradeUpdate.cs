@@ -13,5 +13,6 @@ namespace MarketMakingGame.Shared.Messages
     public bool IsBuy { get; set; }
 
     public double TradePrice { get; set; }
+    public double TradeQty { get; set; }
   }
 }

@@ -21,6 +21,7 @@ namespace MarketMakingGame.Shared.Messages
     public bool IsFinished { get; set; }
     
     public bool IsTradingLocked { get; set; }
+    public double? SettlementPrice { get; set; }
 
     public override string ToString()
     {

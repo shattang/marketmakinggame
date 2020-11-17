@@ -19,5 +19,7 @@ namespace MarketMakingGame.Shared.Messages
     public double? PositionQty { get; set; }
 
     public double? PositionCashFlow { get; set; }
+    public double? SettlementPnl { get; set; }
+    public int? SettlementCardId { get; set; }
   }
 }
