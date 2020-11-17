@@ -16,6 +16,7 @@ namespace MarketMakingGame.Server.Lib
   {
     private ILogger _logger;
     private GameService _service;
+    private Bag<int> _cardDeck;
 
     public GameState GameState { get; set; }
 
@@ -80,22 +81,56 @@ namespace MarketMakingGame.Server.Lib
         _logger.LogInformation("Added PlayerState: PlayerStateId={}", playerState.PlayerStateId);
       }
 
-      return playerState;;
+      return playerState; ;
     }
 
-    public async Task<bool> DealPlayerCards()
+    private void EnsureCardDeckInitialized()
     {
-      var toDeal = GameState.PlayerStates
-        .Select(x => x.PlayerCardCardId == _service.UnopenedCard.CardId).ToList();
-      
-      
+      if (_cardDeck == null)
+      {
+        var minCardsNeeded = (GameState.Game.NumberOfRounds ?? 0) + GameState.PlayerStates.Count;
+        var minDecksNeeded = Math.Max(minCardsNeeded, 1) / _service.Cards.Count + 1;
+        var dealtCards = GameState.RoundStates
+          .Select(x => x.CommunityCard)
+          .Concat(GameState.PlayerStates.Select(x => x.PlayerCard))
+          .Where(x => x != null && x != _service.UnopenedCard)
+          .Select(x => x.CardId);
+        _cardDeck = new Bag<int>(_service.Cards.Select(x => x.CardId), dealtCards,
+          _service.UnopenedCard.CardId, minDecksNeeded);
+        _logger.LogInformation($"Card Deck Initialized NumOfDecks={minDecksNeeded}");
+      }
+    }
 
-      return toDeal.Count > 0;
+    public async Task<List<PlayerState>> DealPlayerCards()
+    {
+      EnsureCardDeckInitialized();
+      var playersToDeal = GameState.PlayerStates
+        .Where(x => x.PlayerCardCardId == _service.UnopenedCard.CardId).ToList();
+
+      foreach (var playerState in playersToDeal)
+      {
+        var drawnCardId = _cardDeck.Draw();
+        playerState.PlayerCardCardId = drawnCardId;
+      }
+
+      await _service.DBContext.SaveChangesAsync();
+      return playersToDeal;
     }
 
     public async Task<bool> DealCommunityCard()
     {
-      throw new NotImplementedException();
+      EnsureCardDeckInitialized();
+
+      var numOfDoneRounds = GameState.RoundStates
+        .Where(x => x.CommunityCardCardId != _service.UnopenedCard.CardId).Count();
+
+      if (numOfDoneRounds < GameState.Game.NumberOfRounds)
+      {
+        
+      }
+
+
+      return false;
     }
   }
 }

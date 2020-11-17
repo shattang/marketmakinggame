@@ -110,7 +110,7 @@ namespace MarketMakingGame.Server.Lib
       var playerState = await gameEngine.CreateGameAsync(request);
       GameEngines[gameEngine.GameState.GameId] = gameEngine;
       resp.IsSuccess = true;
-      resp.GameId = gameEngine.GameState.GameId;
+      resp.Game = gameEngine.GameState.Game;
       await responseHandler(resp);
 
       InvokeOnPlayerUpdate(MakePlayerUpdateResponse(playerState));
@@ -148,17 +148,16 @@ namespace MarketMakingGame.Server.Lib
       var playerState = await gameEngine.JoinGameAsync(request);
       resp.IsSuccess = true;
       resp.Game = gameEngine.GameState.Game;
-      resp.PlayerPublicId = playerState.PlayerStateId;
       await responseHandler(resp);
 
       InvokeOnPlayerUpdate(MakePlayerUpdateResponse(playerState));
       InvokeOnGameUpdate(MakeGameUpdateResponse(gameEngine.GameState));
     }
 
-    public async Task DealPlayerCards(DealPlayerCardsRequest request, Func<BaseResponse, Task> responseHandler)
+    public async Task DealCards(DealCardsRequest request, Func<BaseResponse, Task> responseHandler)
     {
-      _logger.LogInformation("DealPlayerCards {}", request);
-      
+      _logger.LogInformation("DealCards {}", request);
+
       var resp = new BaseResponse() { RequestId = request.RequestId };
 
       var gameEngine = GameEngines.GetValueOrDefault(request.GameId);
@@ -176,48 +175,33 @@ namespace MarketMakingGame.Server.Lib
         return;
       }
 
-      var changed = await gameEngine.DealPlayerCards();
-      resp.IsSuccess = true;
-      await responseHandler(resp);
-
-      if (changed)
+      if (request.RequestType == DealCardsRequest.DealCardsRequestType.Players)
       {
-        foreach(var playerState in gameEngine.GameState.PlayerStates)
+        var changed = await gameEngine.DealPlayerCards();
+        resp.IsSuccess = true;
+        await responseHandler(resp);
+
+        foreach (var playerState in changed)
         {
           InvokeOnPlayerUpdate(MakePlayerUpdateResponse(playerState));
         }
-      }   
-    }
-
-    public async Task DealCommunityCard(DealCommunityCardRequest request, Func<BaseResponse, Task> responseHandler)
-    {
-      _logger.LogInformation("DealCommunityCard {}", request);
-      
-      var resp = new BaseResponse() { RequestId = request.RequestId };
-
-      var gameEngine = GameEngines.GetValueOrDefault(request.GameId);
-      if (gameEngine == null)
-      {
-        resp.ErrorMessage = "GameId not found";
-        await responseHandler(resp);
-        return;
       }
-
-      if (gameEngine.GameState.PlayerId != request.PlayerId)
+      else if (request.RequestType == DealCardsRequest.DealCardsRequestType.Community)
       {
-        resp.ErrorMessage = "Only dealer can initiate this request";
+        var changed = await gameEngine.DealCommunityCard();
+        resp.IsSuccess = true;
         await responseHandler(resp);
-        return;
+
+        if (changed)
+        {
+          InvokeOnGameUpdate(MakeGameUpdateResponse(gameEngine.GameState));
+        }
       }
-
-      var changed = await gameEngine.DealCommunityCard();
-      resp.IsSuccess = true;
-      await responseHandler(resp);
-
-      if (changed)
+      else
       {
-        InvokeOnGameUpdate(MakeGameUpdateResponse(gameEngine.GameState));
-      }   
+        resp.ErrorMessage = "Unknown deal request type";
+        await responseHandler(resp);
+      }
     }
 
     private GameUpdateResponse MakeGameUpdateResponse(Models.GameState gameState)
@@ -262,6 +246,8 @@ namespace MarketMakingGame.Server.Lib
     {
       var ret = new PlayerUpdateResponse() { GameId = playerState.GameState.GameId, PlayerId = playerState.PlayerId };
       ret.CardId = playerState.PlayerCardCardId;
+      ret.PlayerPublicId = playerState.PlayerStateId;
+      ret.IsDealer = playerState.PlayerId == playerState.GameState.PlayerId;
       ret.IsSuccess = true;
       return ret;
     }
