@@ -26,10 +26,11 @@ namespace MarketMakingGame.Server.Migrations
                 columns: table => new
                 {
                     GameId = table.Column<string>(type: "char", maxLength: 36, nullable: false),
-                    GameName = table.Column<string>(type: "char", maxLength: 20, nullable: false),
+                    GameName = table.Column<string>(type: "char", maxLength: 36, nullable: false),
                     NumberOfRounds = table.Column<int>(nullable: true),
                     MinQuoteWidth = table.Column<double>(nullable: true),
-                    MaxQuoteWidth = table.Column<double>(nullable: true)
+                    MaxQuoteWidth = table.Column<double>(nullable: true),
+                    TradeQty = table.Column<double>(nullable: true)
                 },
                 constraints: table =>
                 {
@@ -41,8 +42,8 @@ namespace MarketMakingGame.Server.Migrations
                 columns: table => new
                 {
                     PlayerId = table.Column<string>(type: "char", maxLength: 36, nullable: false),
-                    DisplayName = table.Column<string>(type: "char", maxLength: 20, nullable: false),
-                    AvatarSeed = table.Column<string>(type: "char", maxLength: 100, nullable: false)
+                    DisplayName = table.Column<string>(type: "char", maxLength: 36, nullable: false),
+                    AvatarSeed = table.Column<string>(type: "char", maxLength: 36, nullable: false)
                 },
                 constraints: table =>
                 {
@@ -56,8 +57,11 @@ namespace MarketMakingGame.Server.Migrations
                     GameStateId = table.Column<int>(nullable: false)
                         .Annotation("Sqlite:Autoincrement", true),
                     IsFinished = table.Column<bool>(nullable: false),
-                    GameId = table.Column<string>(nullable: true),
-                    PlayerId = table.Column<string>(nullable: true)
+                    GameId = table.Column<string>(type: "char", maxLength: 36, nullable: false),
+                    PlayerId = table.Column<string>(type: "char", maxLength: 36, nullable: false),
+                    BestCurrentAsk = table.Column<double>(nullable: true),
+                    BestCurrentBid = table.Column<double>(nullable: true),
+                    IsTradingLocked = table.Column<bool>(nullable: false)
                 },
                 constraints: table =>
                 {
@@ -67,13 +71,13 @@ namespace MarketMakingGame.Server.Migrations
                         column: x => x.GameId,
                         principalTable: "Games",
                         principalColumn: "GameId",
-                        onDelete: ReferentialAction.Restrict);
+                        onDelete: ReferentialAction.Cascade);
                     table.ForeignKey(
                         name: "FK_GameStates_Players_PlayerId",
                         column: x => x.PlayerId,
                         principalTable: "Players",
                         principalColumn: "PlayerId",
-                        onDelete: ReferentialAction.Restrict);
+                        onDelete: ReferentialAction.Cascade);
                 });
 
             migrationBuilder.CreateTable(
@@ -82,11 +86,13 @@ namespace MarketMakingGame.Server.Migrations
                 {
                     PlayerStateId = table.Column<int>(nullable: false)
                         .Annotation("Sqlite:Autoincrement", true),
-                    PlayerId = table.Column<string>(nullable: true),
+                    PlayerId = table.Column<string>(type: "char", maxLength: 36, nullable: false),
                     GameStateId = table.Column<int>(nullable: false),
                     PlayerCardCardId = table.Column<int>(nullable: false),
                     CurrentBid = table.Column<double>(nullable: true),
-                    CurrentAsk = table.Column<double>(nullable: true)
+                    CurrentAsk = table.Column<double>(nullable: true),
+                    PositionCashFlow = table.Column<double>(nullable: true),
+                    PositionQty = table.Column<double>(nullable: true)
                 },
                 constraints: table =>
                 {
@@ -108,7 +114,7 @@ namespace MarketMakingGame.Server.Migrations
                         column: x => x.PlayerId,
                         principalTable: "Players",
                         principalColumn: "PlayerId",
-                        onDelete: ReferentialAction.Restrict);
+                        onDelete: ReferentialAction.Cascade);
                 });
 
             migrationBuilder.CreateTable(
@@ -144,10 +150,11 @@ namespace MarketMakingGame.Server.Migrations
                     TradeId = table.Column<int>(nullable: false)
                         .Annotation("Sqlite:Autoincrement", true),
                     GameStateId = table.Column<int>(nullable: false),
-                    InitiatingPlayerPlayerId = table.Column<string>(nullable: true),
-                    TargetPlayerPlayerId = table.Column<string>(nullable: true),
+                    InitiatorPlayerStateId = table.Column<int>(nullable: false),
+                    TargetPlayerStateId = table.Column<int>(nullable: false),
                     IsBuy = table.Column<bool>(nullable: false),
-                    TradePrice = table.Column<double>(nullable: false)
+                    TradePrice = table.Column<double>(nullable: false),
+                    TradeQty = table.Column<double>(nullable: false)
                 },
                 constraints: table =>
                 {
@@ -159,17 +166,17 @@ namespace MarketMakingGame.Server.Migrations
                         principalColumn: "GameStateId",
                         onDelete: ReferentialAction.Cascade);
                     table.ForeignKey(
-                        name: "FK_Trades_Players_InitiatingPlayerPlayerId",
-                        column: x => x.InitiatingPlayerPlayerId,
-                        principalTable: "Players",
-                        principalColumn: "PlayerId",
-                        onDelete: ReferentialAction.Restrict);
+                        name: "FK_Trades_PlayerStates_InitiatorPlayerStateId",
+                        column: x => x.InitiatorPlayerStateId,
+                        principalTable: "PlayerStates",
+                        principalColumn: "PlayerStateId",
+                        onDelete: ReferentialAction.Cascade);
                     table.ForeignKey(
-                        name: "FK_Trades_Players_TargetPlayerPlayerId",
-                        column: x => x.TargetPlayerPlayerId,
-                        principalTable: "Players",
-                        principalColumn: "PlayerId",
-                        onDelete: ReferentialAction.Restrict);
+                        name: "FK_Trades_PlayerStates_TargetPlayerStateId",
+                        column: x => x.TargetPlayerStateId,
+                        principalTable: "PlayerStates",
+                        principalColumn: "PlayerStateId",
+                        onDelete: ReferentialAction.Cascade);
                 });
 
             migrationBuilder.InsertData(
@@ -480,21 +487,18 @@ namespace MarketMakingGame.Server.Migrations
                 column: "GameStateId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_Trades_InitiatingPlayerPlayerId",
+                name: "IX_Trades_InitiatorPlayerStateId",
                 table: "Trades",
-                column: "InitiatingPlayerPlayerId");
+                column: "InitiatorPlayerStateId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_Trades_TargetPlayerPlayerId",
+                name: "IX_Trades_TargetPlayerStateId",
                 table: "Trades",
-                column: "TargetPlayerPlayerId");
+                column: "TargetPlayerStateId");
         }
 
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropTable(
-                name: "PlayerStates");
-
             migrationBuilder.DropTable(
                 name: "RoundStates");
 
@@ -502,10 +506,13 @@ namespace MarketMakingGame.Server.Migrations
                 name: "Trades");
 
             migrationBuilder.DropTable(
-                name: "Cards");
+                name: "PlayerStates");
 
             migrationBuilder.DropTable(
                 name: "GameStates");
+
+            migrationBuilder.DropTable(
+                name: "Cards");
 
             migrationBuilder.DropTable(
                 name: "Games");

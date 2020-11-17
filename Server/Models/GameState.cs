@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using MarketMakingGame.Shared.Models;
 using MarketMakingGame.Shared.Lib;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace MarketMakingGame.Server.Models
 {
@@ -12,9 +13,15 @@ namespace MarketMakingGame.Server.Models
 
     public bool IsFinished { get; set; }
 
+    [Required]
+    [MaxLength(36)]
+    [Column(TypeName = "char")]
     public string GameId { get; set; }
     public Game Game { get; set; }
 
+    [Required]
+    [MaxLength(36)]
+    [Column(TypeName = "char")]
     public string PlayerId { get; set; }
     public Player Player { get; set; }
 

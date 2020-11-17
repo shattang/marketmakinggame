@@ -69,7 +69,7 @@ namespace MarketMakingGame.Client.Lib
       if (_request != null && response.RequestId == _request.RequestId)
       {
         var gameInfo = _request.Game;
-        gameInfo.GameId = response.GameId;
+        gameInfo.GameId = response.Game.GameId;
         ResetRequest();
 
         if (response.IsSuccess)

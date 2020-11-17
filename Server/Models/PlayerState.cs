@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 using MarketMakingGame.Shared.Lib;
 using MarketMakingGame.Shared.Models;
 
@@ -9,6 +11,9 @@ namespace MarketMakingGame.Server.Models
   {
     public int PlayerStateId { get; set; }
 
+    [Required]
+    [MaxLength(36)]
+    [Column(TypeName = "char")]
     public string PlayerId { get; set; }
     public Player Player { get; set; }
 

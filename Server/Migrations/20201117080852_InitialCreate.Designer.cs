@@ -9,7 +9,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace MarketMakingGame.Server.Migrations
 {
     [DbContext(typeof(GameDbContext))]
-    [Migration("20201116160540_InitialCreate")]
+    [Migration("20201117080852_InitialCreate")]
     partial class InitialCreate
     {
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -24,14 +24,27 @@ namespace MarketMakingGame.Server.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER");
 
+                    b.Property<double?>("BestCurrentAsk")
+                        .HasColumnType("REAL");
+
+                    b.Property<double?>("BestCurrentBid")
+                        .HasColumnType("REAL");
+
                     b.Property<string>("GameId")
-                        .HasColumnType("TEXT");
+                        .IsRequired()
+                        .HasColumnType("char")
+                        .HasMaxLength(36);
 
                     b.Property<bool>("IsFinished")
                         .HasColumnType("INTEGER");
 
+                    b.Property<bool>("IsTradingLocked")
+                        .HasColumnType("INTEGER");
+
                     b.Property<string>("PlayerId")
-                        .HasColumnType("TEXT");
+                        .IsRequired()
+                        .HasColumnType("char")
+                        .HasMaxLength(36);
 
                     b.HasKey("GameStateId");
 
@@ -62,7 +75,15 @@ namespace MarketMakingGame.Server.Migrations
                         .HasColumnType("INTEGER");
 
                     b.Property<string>("PlayerId")
-                        .HasColumnType("TEXT");
+                        .IsRequired()
+                        .HasColumnType("char")
+                        .HasMaxLength(36);
+
+                    b.Property<double?>("PositionCashFlow")
+                        .HasColumnType("REAL");
+
+                    b.Property<double?>("PositionQty")
+                        .HasColumnType("REAL");
 
                     b.HasKey("PlayerStateId");
 
@@ -106,25 +127,28 @@ namespace MarketMakingGame.Server.Migrations
                     b.Property<int>("GameStateId")
                         .HasColumnType("INTEGER");
 
-                    b.Property<string>("InitiatingPlayerPlayerId")
-                        .HasColumnType("TEXT");
+                    b.Property<int>("InitiatorPlayerStateId")
+                        .HasColumnType("INTEGER");
 
                     b.Property<bool>("IsBuy")
                         .HasColumnType("INTEGER");
 
-                    b.Property<string>("TargetPlayerPlayerId")
-                        .HasColumnType("TEXT");
+                    b.Property<int>("TargetPlayerStateId")
+                        .HasColumnType("INTEGER");
 
                     b.Property<double>("TradePrice")
+                        .HasColumnType("REAL");
+
+                    b.Property<double>("TradeQty")
                         .HasColumnType("REAL");
 
                     b.HasKey("TradeId");
 
                     b.HasIndex("GameStateId");
 
-                    b.HasIndex("InitiatingPlayerPlayerId");
+                    b.HasIndex("InitiatorPlayerStateId");
 
-                    b.HasIndex("TargetPlayerPlayerId");
+                    b.HasIndex("TargetPlayerStateId");
 
                     b.ToTable("Trades");
                 });
@@ -533,7 +557,7 @@ namespace MarketMakingGame.Server.Migrations
                     b.Property<string>("GameName")
                         .IsRequired()
                         .HasColumnType("char")
-                        .HasMaxLength(20);
+                        .HasMaxLength(36);
 
                     b.Property<double?>("MaxQuoteWidth")
                         .HasColumnType("REAL");
@@ -543,6 +567,9 @@ namespace MarketMakingGame.Server.Migrations
 
                     b.Property<int?>("NumberOfRounds")
                         .HasColumnType("INTEGER");
+
+                    b.Property<double?>("TradeQty")
+                        .HasColumnType("REAL");
 
                     b.HasKey("GameId");
 
@@ -558,12 +585,12 @@ namespace MarketMakingGame.Server.Migrations
                     b.Property<string>("AvatarSeed")
                         .IsRequired()
                         .HasColumnType("char")
-                        .HasMaxLength(100);
+                        .HasMaxLength(36);
 
                     b.Property<string>("DisplayName")
                         .IsRequired()
                         .HasColumnType("char")
-                        .HasMaxLength(20);
+                        .HasMaxLength(36);
 
                     b.HasKey("PlayerId");
 
@@ -574,11 +601,15 @@ namespace MarketMakingGame.Server.Migrations
                 {
                     b.HasOne("MarketMakingGame.Shared.Models.Game", "Game")
                         .WithMany()
-                        .HasForeignKey("GameId");
+                        .HasForeignKey("GameId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
 
                     b.HasOne("MarketMakingGame.Shared.Models.Player", "Player")
                         .WithMany()
-                        .HasForeignKey("PlayerId");
+                        .HasForeignKey("PlayerId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("MarketMakingGame.Server.Models.PlayerState", b =>
@@ -597,7 +628,9 @@ namespace MarketMakingGame.Server.Migrations
 
                     b.HasOne("MarketMakingGame.Shared.Models.Player", "Player")
                         .WithMany()
-                        .HasForeignKey("PlayerId");
+                        .HasForeignKey("PlayerId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("MarketMakingGame.Server.Models.RoundState", b =>
@@ -623,13 +656,17 @@ namespace MarketMakingGame.Server.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("MarketMakingGame.Shared.Models.Player", "InitiatingPlayer")
+                    b.HasOne("MarketMakingGame.Server.Models.PlayerState", "Initiator")
                         .WithMany()
-                        .HasForeignKey("InitiatingPlayerPlayerId");
+                        .HasForeignKey("InitiatorPlayerStateId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
 
-                    b.HasOne("MarketMakingGame.Shared.Models.Player", "TargetPlayer")
+                    b.HasOne("MarketMakingGame.Server.Models.PlayerState", "Target")
                         .WithMany()
-                        .HasForeignKey("TargetPlayerPlayerId");
+                        .HasForeignKey("TargetPlayerStateId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 #pragma warning restore 612, 618
         }

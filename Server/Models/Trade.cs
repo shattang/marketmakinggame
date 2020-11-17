@@ -14,7 +14,7 @@ namespace MarketMakingGame.Server.Models
     public PlayerState Initiator { get; set; }
 
     public int TargetPlayerStateId { get; set; }
-    public Player Target { get; set; }
+    public PlayerState Target { get; set; }
 
     public bool IsBuy { get; set; }
 
