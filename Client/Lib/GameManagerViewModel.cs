@@ -68,15 +68,13 @@ namespace MarketMakingGame.Client.Lib
     {
       if (_request != null && response.RequestId == _request.RequestId)
       {
-        var gameInfo = _request.Game;
-        gameInfo.GameId = response.Game.GameId;
         ResetRequest();
 
         if (response.IsSuccess)
         {
-          CreatedGames.Add(gameInfo);
+          CreatedGames.Add(response.Game);
           _ = _localStorage.SetItemAsync(CREATED_GAMES_KEY, CreatedGames);
-          MainViewModel.ShowGamePlayer(gameInfo);
+          MainViewModel.ShowGamePlayer(response.Game);
         }
         else
         {

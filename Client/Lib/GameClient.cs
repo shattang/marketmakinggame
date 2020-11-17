@@ -27,7 +27,47 @@ namespace MarketMakingGame.Client.Lib
       _hubConnection.Reconnected += OnHubReconnected;
       _hubConnection.On<CreateGameResponse>("OnCreateGameResponse", HandleCreateGameResponse);
       _hubConnection.On<JoinGameResponse>("OnJoinGameResponse", HandleJoinGameResponse);
+      _hubConnection.On<GameUpdateResponse>("OnGameUpdateResponse", HandleGameUpdateResponse);
+      _hubConnection.On<PlayerUpdateResponse>("OnPlayerUpdateResponse", HandlePlayerUpdateResponse);
+      _hubConnection.On<DealGameResponse>("OnDealGameResponse", HandleDealGameResponse);
+      _hubConnection.On<UpdateQuoteResponse>("OnUpdateQuoteResponse", HandleUpdateQuoteResponse);
+      _hubConnection.On<TradeResponse>("OnTradeResponse", HandleTradeResponse);
       _logger.LogDebug("GameClient Created");
+    }
+
+    private void HandleUpdateQuoteResponse(UpdateQuoteResponse obj)
+    {
+      _logger.LogInformation("HandleUpdateQuoteResponse Message={0}", obj);
+      if (OnUpdateQuoteResponse != null)
+        OnUpdateQuoteResponse(obj);
+    }
+
+    private void HandleTradeResponse(TradeResponse obj)
+    {
+      _logger.LogInformation("HandleTradeResponse Message={0}", obj);
+      if (OnTradeResponse != null)
+        OnTradeResponse(obj);
+    }
+
+    private void HandleDealGameResponse(DealGameResponse obj)
+    {
+      _logger.LogInformation("HandleDealGameResponse Message={0}", obj);
+      if (OnDealGameResponse != null)
+        OnDealGameResponse(obj);
+    }
+
+    private void HandlePlayerUpdateResponse(PlayerUpdateResponse obj)
+    {
+      _logger.LogInformation("HandlePlayerUpdateResponse Message={0}", obj);
+      if (OnPlayerUpdateResponse != null)
+        OnPlayerUpdateResponse(obj);
+    }
+
+    private void HandleGameUpdateResponse(GameUpdateResponse obj)
+    {
+      _logger.LogInformation("HandleGameUpdateResponse Message={0}", obj);
+      if (OnGameUpdateResponse != null)
+        OnGameUpdateResponse(obj);
     }
 
     public async Task InitializeAsync()
@@ -87,14 +127,14 @@ namespace MarketMakingGame.Client.Lib
 
     private void HandleCreateGameResponse(CreateGameResponse response)
     {
-      _logger.LogDebug("HandleCreateGameResponse Message={0}", response);
+      _logger.LogInformation("HandleCreateGameResponse Message={0}", response);
       if (OnCreateGameResponse != null)
         OnCreateGameResponse(response);
     }
 
     private void HandleJoinGameResponse(JoinGameResponse response)
     {
-      _logger.LogDebug("HandleJoinGameResponse Message={0}", response);
+      _logger.LogInformation("HandleJoinGameResponse Message={0}", response);
       if (OnJoinGameResponse != null)
         OnJoinGameResponse(response);
     }
@@ -112,6 +152,11 @@ namespace MarketMakingGame.Client.Lib
 
     public event Action<CreateGameResponse> OnCreateGameResponse;
     public event Action<JoinGameResponse> OnJoinGameResponse;
+    public event Action<GameUpdateResponse> OnGameUpdateResponse;
+    public event Action<PlayerUpdateResponse> OnPlayerUpdateResponse;
+    public event Action<DealGameResponse> OnDealGameResponse;
+    public event Action<UpdateQuoteResponse> OnUpdateQuoteResponse;
+    public event Action<TradeResponse> OnTradeResponse;
 
     public event Action<bool> OnIsConnectedChanged;
 

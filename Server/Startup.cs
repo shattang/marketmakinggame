@@ -33,6 +33,7 @@ namespace MarketMakingGame.Server
             });
       services.AddDbContext<GameDbContext>();
       services.AddSingleton<GameService>();
+      services.AddSingleton<GameHubEventManager>();
     }
 
     public void Configure(IApplicationBuilder app, IWebHostEnvironment env)

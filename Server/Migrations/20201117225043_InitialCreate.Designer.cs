@@ -9,7 +9,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace MarketMakingGame.Server.Migrations
 {
     [DbContext(typeof(GameDbContext))]
-    [Migration("20201117084820_InitialCreate")]
+    [Migration("20201117225043_InitialCreate")]
     partial class InitialCreate
     {
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
