@@ -4,7 +4,7 @@ using MarketMakingGame.Shared.Models;
 
 namespace MarketMakingGame.Shared.Messages
 {
-  public sealed class DealerResponse : BaseResponse
+  public sealed class DealGameResponse : BaseResponse
   {
     public override string ToString()
     {

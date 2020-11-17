@@ -154,11 +154,11 @@ namespace MarketMakingGame.Server.Lib
       InvokeOnGameUpdate(MakeGameUpdateResponse(gameEngine.GameState, gameEngine.GameState.Trades));
     }
 
-    public async Task DealAsync(DealerRequest request, Func<DealerResponse, Task> responseHandler)
+    public async Task DealGameAsync(DealGameRequest request, Func<DealGameResponse, Task> responseHandler)
     {
-      _logger.LogInformation("Deal {}", request);
+      _logger.LogInformation("DealGame {}", request);
 
-      var resp = new DealerResponse() { RequestId = request.RequestId };
+      var resp = new DealGameResponse() { RequestId = request.RequestId };
 
       var gameEngine = GameEngines.GetValueOrDefault(request.GameId);
       if (gameEngine == null)
@@ -175,7 +175,7 @@ namespace MarketMakingGame.Server.Lib
         return;
       }
 
-      if (request.RequestType == DealerRequest.DealerRequestType.DealPlayerCards)
+      if (request.RequestType == DealGameRequest.RequestTypes.DealPlayerCards)
       {
         var updatedPlayers = await gameEngine.DealPlayerCards();
         resp.IsSuccess = true;
@@ -186,7 +186,7 @@ namespace MarketMakingGame.Server.Lib
           InvokeOnPlayerUpdate(MakePlayerUpdateResponse(playerState));
         }
       }
-      else if (request.RequestType == DealerRequest.DealerRequestType.DealNextCommunityCard)
+      else if (request.RequestType == DealGameRequest.RequestTypes.DealNextCommunityCard)
       {
         (resp.IsSuccess, resp.ErrorMessage) = await gameEngine.DealNextCommunityCard();
         await responseHandler(resp);
@@ -196,10 +196,10 @@ namespace MarketMakingGame.Server.Lib
           InvokeOnGameUpdate(MakeGameUpdateResponse(gameEngine.GameState));
         }
       }
-      else if (request.RequestType == DealerRequest.DealerRequestType.LockTrading ||
-        request.RequestType == DealerRequest.DealerRequestType.UnlockTrading)
+      else if (request.RequestType == DealGameRequest.RequestTypes.LockTrading ||
+        request.RequestType == DealGameRequest.RequestTypes.UnlockTrading)
       {
-        var locked = request.RequestType == DealerRequest.DealerRequestType.LockTrading ? true : false;
+        var locked = request.RequestType == DealGameRequest.RequestTypes.LockTrading ? true : false;
         (resp.IsSuccess, resp.ErrorMessage) = await gameEngine.LockTrading(locked);
         await responseHandler(resp);
 
@@ -208,7 +208,7 @@ namespace MarketMakingGame.Server.Lib
           InvokeOnGameUpdate(MakeGameUpdateResponse(gameEngine.GameState));
         }
       }
-      else if (request.RequestType == DealerRequest.DealerRequestType.FinishGame)
+      else if (request.RequestType == DealGameRequest.RequestTypes.FinishGame)
       {
         (resp.IsSuccess, resp.ErrorMessage) = await gameEngine.FinishGame();
         await responseHandler(resp);

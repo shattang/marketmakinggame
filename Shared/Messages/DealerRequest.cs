@@ -4,9 +4,9 @@ using MarketMakingGame.Shared.Models;
 
 namespace MarketMakingGame.Shared.Messages
 {
-  public sealed class DealerRequest : BaseRequest
+  public sealed class DealGameRequest : BaseRequest
   {
-    public enum DealerRequestType
+    public enum RequestTypes
     {
       DealPlayerCards,
       DealNextCommunityCard,
@@ -19,7 +19,7 @@ namespace MarketMakingGame.Shared.Messages
 
     public string GameId { get; set; }
 
-    public DealerRequestType RequestType { get; set;}
+    public RequestTypes RequestType { get; set;}
 
     public override string ToString()
     {

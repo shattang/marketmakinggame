@@ -123,5 +123,65 @@ namespace MarketMakingGame.Server.Hubs
       await Groups.AddToGroupAsync(connectionId, gameId);
       await Groups.AddToGroupAsync(connectionId, $"{gameId}.{playerId}");
     }
+
+    public async Task DealGame(DealGameRequest request)
+    {
+      async Task InvokeOnDealGameResponse(DealGameResponse resp)
+      {
+        _logger.LogInformation("Sending Response: {}", resp);
+        await Clients.Caller.SendAsync("OnDealGameResponse", resp);
+      }
+
+      try
+      {
+        await _gameService.DealGameAsync(request, InvokeOnDealGameResponse);
+      }
+      catch (Exception ex)
+      {
+        _logger.LogError(ex, nameof(JoinGame));
+        await InvokeOnDealGameResponse(new DealGameResponse()
+        { ErrorMessage = $"{ex.GetType()}: {ex.Message}" });
+      }
+    }
+
+    public async Task UpdateQuote(UpdateQuoteRequest request)
+    {
+      async Task InvokeOnUpdateQuoteResponse(UpdateQuoteResponse resp)
+      {
+        _logger.LogInformation("Sending Response: {}", resp);
+        await Clients.Caller.SendAsync("OnUpdateQuoteResponse", resp);
+      }
+
+      try
+      {
+        await _gameService.UpdateQuoteAsync(request, InvokeOnUpdateQuoteResponse);
+      }
+      catch (Exception ex)
+      {
+        _logger.LogError(ex, nameof(JoinGame));
+        await InvokeOnUpdateQuoteResponse(new UpdateQuoteResponse()
+        { ErrorMessage = $"{ex.GetType()}: {ex.Message}" });
+      }
+    }
+
+    public async Task Trade(TradeRequest request)
+    {
+      async Task InvokeOnTradeResponse(TradeResponse resp)
+      {
+        _logger.LogInformation("Sending Response: {}", resp);
+        await Clients.Caller.SendAsync("OnTradeResponse", resp);
+      }
+
+      try
+      {
+        await _gameService.TradeAsync(request, InvokeOnTradeResponse);
+      }
+      catch (Exception ex)
+      {
+        _logger.LogError(ex, nameof(JoinGame));
+        await InvokeOnTradeResponse(new TradeResponse()
+        { ErrorMessage = $"{ex.GetType()}: {ex.Message}" });
+      }
+    }
   }
 }
