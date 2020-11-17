@@ -313,7 +313,7 @@ namespace MarketMakingGame.Server.Lib
         PositionCashFlow = x.PositionCashFlow,
         PositionQty = x.PositionQty,
         SettlementPnl = x.SettlementPnl,
-        SettlementCardId = x.GameState.IsFinished ? x.PlayerCardCardId : null
+        SettlementCardId = x.GameState.IsFinished ? (int?)x.PlayerCardCardId : null
       };
     }
 
