@@ -1,5 +1,6 @@
 @page "/playgame/{gameid}"
-
+@using MarketMakingGame.Client.Lib
+@inject GamePlayerViewModel GamePlayerViewModel
 
 <p>
   Joining Game: @GameId
@@ -8,4 +9,12 @@
 @code {
   [Parameter]
   public string GameId { get; set; }
+
+  public GamePlayerViewModel ViewModel => GamePlayerViewModel;
+
+  protected override async Task OnInitializedAsync()
+  {
+    ViewModel.GameId = GameId;
+    await ViewModel.InitializeAsync();
+  }
 }

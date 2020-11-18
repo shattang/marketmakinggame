@@ -56,12 +56,12 @@ namespace MarketMakingGame.Server.Lib
       _logger.LogInformation("Initialized");
     }
 
-    public GetGameInfoResponse GetGameInfo(GetGameInfoRequest request)
+    public async Task<GetGameInfoResponse> GetGameInfo(GetGameInfoRequest request)
     {
       _logger.LogInformation("GetGameInfo {}", request);
 
-      var lookup = DBContext.Games
-        .Where(x => request.GameIds.Contains(x.GameId)).ToList();
+      var lookup = await DBContext.Games
+        .Where(x => request.GameIds.Contains(x.GameId)).ToListAsync();
 
       return new GetGameInfoResponse()
       {
@@ -96,8 +96,8 @@ namespace MarketMakingGame.Server.Lib
         return;
       }
 
-      var numPlayerGames = DBContext.GameStates
-        .Count(x => x.PlayerId == request.Player.PlayerId && !x.IsFinished);
+      var numPlayerGames = await DBContext.GameStates
+        .CountAsync(x => x.PlayerId == request.Player.PlayerId && !x.IsFinished);
       _logger.LogInformation($"numPlayerGames={numPlayerGames}");
       if (numPlayerGames > MAX_GAMES_PER_USER)
       {
@@ -133,8 +133,8 @@ namespace MarketMakingGame.Server.Lib
       var gameEngine = GameEngines.GetValueOrDefault(request.GameId);
       if (gameEngine == null)
       {
-        var gameState = DBContext.GameStates
-          .FirstOrDefault(x => x.PlayerId == request.Player.PlayerId && x.GameId == request.GameId);
+        var gameState = await DBContext.GameStates
+          .FirstOrDefaultAsync(x => x.PlayerId == request.Player.PlayerId && x.GameId == request.GameId);
         if (gameState == null)
         {
           resp.ErrorMessage = "GameId not found";

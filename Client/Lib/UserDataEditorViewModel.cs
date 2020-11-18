@@ -9,7 +9,7 @@ namespace MarketMakingGame.Client.Lib
 {
   public class UserDataEditorViewModel : BaseViewModel
   {
-    private const String USER_DATA_KEY = "MMG.UserData";
+    public const String USER_DATA_KEY = "MMG.UserData";
     private readonly ILocalStorageService _localStorage;
     public Player Data { get; set; } = new Player();
     private bool _isUserDataEditorOpen = false;

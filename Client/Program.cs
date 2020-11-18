@@ -31,7 +31,8 @@ namespace MarketMakingGame.Client
       builder.Services.AddBootstrapProviders();
       builder.Services.AddFontAwesomeIcons();
       builder.Services.AddScoped<MainPageViewModel>();
-
+      builder.Services.AddScoped<GamePlayerViewModel>();
+      
       var webAssemblyHost = builder.Build();
       webAssemblyHost.Services
       .UseBootstrapProviders()

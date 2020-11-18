@@ -35,7 +35,7 @@ namespace MarketMakingGame.Server.Hubs
       return _gameService.GetCards(request);
     }
 
-    public GetGameInfoResponse GetGameInfo(GetGameInfoRequest request)
+    public Task<GetGameInfoResponse> GetGameInfo(GetGameInfoRequest request)
     {
       return _gameService.GetGameInfo(request);
     }
