@@ -14,5 +14,10 @@ namespace MarketMakingGame.Shared.Messages
 
     public double TradePrice { get; set; }
     public double TradeQty { get; set; }
+
+    public override string ToString()
+    {
+      return this.ToStringWithProperties();
+    }
   }
 }

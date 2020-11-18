@@ -17,19 +17,19 @@ namespace MarketMakingGame.Server.Models
     [MaxLength(36)]
     [Column(TypeName = "char")]
     public string GameId { get; set; }
-    public Game Game { get; set; }
+    public virtual Game Game { get; set; }
 
     [Required]
     [MaxLength(36)]
     [Column(TypeName = "char")]
     public string PlayerId { get; set; }
-    public Player Player { get; set; }
+    public virtual Player Player { get; set; }
 
-    public List<PlayerState> PlayerStates { get; set; }
+    public virtual List<PlayerState> PlayerStates { get; set; }
 
-    public List<RoundState> RoundStates { get; set; }
+    public virtual List<RoundState> RoundStates { get; set; }
 
-    public List<Trade> Trades { get; set; }
+    public virtual List<Trade> Trades { get; set; }
 
     public double? BestCurrentAsk { get; set; }
 

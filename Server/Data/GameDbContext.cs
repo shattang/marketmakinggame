@@ -25,13 +25,15 @@ namespace MarketMakingGame.Server.Data
     protected override void OnConfiguring(DbContextOptionsBuilder options)
     {
       var homeFolder = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-      options.UseSqlite($"Data Source={homeFolder}/data/marketmakinggame.db");
+      options
+        .UseLazyLoadingProxies()
+        .UseSqlite($"Data Source={homeFolder}/data/marketmakinggame.db");
     }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
       modelBuilder.ApplyConfiguration(new CardConfiguration());
-      
+
       modelBuilder.Entity<GameState>()
         .HasIndex(x => new { x.GameId, x.PlayerId })
         .IsUnique();

@@ -25,6 +25,12 @@ namespace MarketMakingGame.Server.Lib
       _logger = loggerProvider.CreateLogger(nameof(GameEngine));
       _service = service;
       GameState = gameState;
+      if (GameState != null)
+      {
+        GameState.PlayerStates = GameState.PlayerStates ?? new List<PlayerState>();
+        GameState.RoundStates = GameState.RoundStates ?? new List<RoundState>();
+        GameState.Trades = GameState.Trades ?? new List<Trade>();
+      }
     }
 
     public async Task<PlayerState> CreateGameAsync(CreateGameRequest request)
@@ -70,7 +76,7 @@ namespace MarketMakingGame.Server.Lib
     public async Task<PlayerState> JoinGameAsync(JoinGameRequest request)
     {
       var playerState = GameState.PlayerStates
-      .FirstOrDefault(x => x.Player.PlayerId == request.Player.PlayerId);
+        .FirstOrDefault(x => x.Player.PlayerId == request.Player.PlayerId);
 
       if (playerState == null)
       {

@@ -18,7 +18,7 @@ namespace MarketMakingGame.Client.Lib
     private const string DEFAULT_SUBMIT_BUTTON_ICON = "checked";
     private const string DEFAULT_REQUEST_FAILED_MESSAGE = "Request timed out";
 
-    private readonly MainViewModel MainViewModel;
+    private readonly MainPageViewModel MainViewModel;
     private readonly ILocalStorageService _localStorage;
     private CreateGameRequest _request = null;
 
@@ -30,7 +30,7 @@ namespace MarketMakingGame.Client.Lib
     public string CreateGameFailedDialogMessage { get; private set; } = DEFAULT_REQUEST_FAILED_MESSAGE;
     public bool IsSubmitButtonDisabled => MainViewModel.GameClient.IsConnected && !CheckValid().Success;
 
-    public GameManagerViewModel(MainViewModel mainView, ILocalStorageService localStorage)
+    public GameManagerViewModel(MainPageViewModel mainView, ILocalStorageService localStorage)
     {
       this.MainViewModel = mainView;
       this._localStorage = localStorage;

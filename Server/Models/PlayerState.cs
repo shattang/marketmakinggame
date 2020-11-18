@@ -15,13 +15,13 @@ namespace MarketMakingGame.Server.Models
     [MaxLength(36)]
     [Column(TypeName = "char")]
     public string PlayerId { get; set; }
-    public Player Player { get; set; }
+    public virtual Player Player { get; set; }
 
     public int GameStateId { get; set; }
-    public GameState GameState { get; set; }
+    public virtual GameState GameState { get; set; }
 
     public int PlayerCardCardId { get; set; }
-    public Card PlayerCard { get; set; }
+    public virtual Card PlayerCard { get; set; }
 
     public double? CurrentBid { get; set; }
 

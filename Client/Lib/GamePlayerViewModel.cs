@@ -10,7 +10,7 @@ namespace MarketMakingGame.Client.Lib
 {
   public class GamePlayerViewModel : BaseViewModel
   {
-    public MainViewModel MainViewModel { get; }
+    public MainPageViewModel MainViewModel { get; }
     public ILocalStorageService LocalStorageService { get; }
     public Game CurrentGame { get; set; }
 
@@ -18,7 +18,7 @@ namespace MarketMakingGame.Client.Lib
 
     public Card UnopenedCard { get; set; }
 
-    public GamePlayerViewModel(MainViewModel mainViewModel, ILocalStorageService localStorage)
+    public GamePlayerViewModel(MainPageViewModel mainViewModel, ILocalStorageService localStorage)
     {
       MainViewModel = mainViewModel;
       LocalStorageService = localStorage;

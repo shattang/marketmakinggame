@@ -1,7 +1,7 @@
 @implements IDisposable
 @using Lib
 @using System
-@inject MainViewModel MainViewModel
+@inject MainPageViewModel MainViewModel
 
 <MatDialog @bind-IsOpen="@MainViewModel.UserDataEditorViewModel.IsUserDataEditorOpen" CanBeClosed="false">
   <MatDialogTitle>Select Avatar</MatDialogTitle>

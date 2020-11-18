@@ -9,7 +9,7 @@ using Microsoft.Extensions.Logging;
 
 namespace MarketMakingGame.Client.Lib
 {
-  public class MainViewModel : BaseViewModel
+  public class MainPageViewModel : BaseViewModel
   {
     private const int STATE_CREATED = 0, STATE_INITIALIZING = 1, STATE_INITIALIZED = 2;
     private volatile int state = STATE_CREATED;
@@ -20,17 +20,15 @@ namespace MarketMakingGame.Client.Lib
     public GameClient GameClient { get; }
     public UserDataEditorViewModel UserDataEditorViewModel { get; }
     public GameManagerViewModel GameManagerViewModel { get; }
-    public GamePlayerViewModel GamePlayerViewModel { get; }
 
-    public MainViewModel(ILocalStorageService localStorage,
+    public MainPageViewModel(ILocalStorageService localStorage,
     ILoggerProvider loggerProvider, NavigationManager navigationManager)
     {
-      _logger = loggerProvider.CreateLogger(nameof(MainViewModel));
+      _logger = loggerProvider.CreateLogger(nameof(MainPageViewModel));
       _navManager = navigationManager;
       GameClient = new GameClient(loggerProvider, navigationManager);
       UserDataEditorViewModel = new UserDataEditorViewModel(localStorage);
       GameManagerViewModel = new GameManagerViewModel(this, localStorage);
-      GamePlayerViewModel = new GamePlayerViewModel(this, localStorage);
       _logger.LogInformation("Created!");
     }
 
@@ -41,7 +39,6 @@ namespace MarketMakingGame.Client.Lib
       await GameClient.InitializeAsync();
       await UserDataEditorViewModel.InitializeAsync();
       await GameManagerViewModel.InitializeAsync();
-      await GamePlayerViewModel.InitializeAsync();
       state = STATE_INITIALIZED;
       _logger.LogInformation("Init!");
     }
@@ -59,7 +56,6 @@ namespace MarketMakingGame.Client.Lib
 
     internal void ShowGamePlayer(Game game)
     {
-      GamePlayerViewModel.CurrentGame = game;
       _navManager.NavigateTo($"/playgame/{game.GameId}");
     }
   }

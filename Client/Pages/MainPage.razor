@@ -2,13 +2,12 @@
 @implements IDisposable
 @using Lib
 @inject NavigationManager NavigationManager
-@inject MainViewModel MainViewModel
+@inject MainPageViewModel MainPageViewModel
 
 <div>
   <table style="width: 100%;">
     <tr>
       <td style="width: 10%;">
-        <UserBadge />
       </td>
       <td style="width: 80%;">
         <div style="text-align: center; display: inline-block; width: 100%;">
@@ -16,7 +15,9 @@
             height=32 /> The Market Maker's Poker</MatHeadline5>
         </div>
       </td>
-      <td style="width: 10%;"></td>
+      <td style="width: 10%;">
+        <UserBadge />
+      </td>
     </tr>
   </table>
 
@@ -35,16 +36,16 @@
 </div>
 
 @code {
-  MainViewModel ViewModel => MainViewModel;
+  MainPageViewModel ViewModel => MainPageViewModel;
 
   protected override async Task OnInitializedAsync()
   {
-    MainViewModel.StateChanged += OnViewModelChanged;
-    await MainViewModel.InitializeAsync();
+    MainPageViewModel.StateChanged += OnViewModelChanged;
+    await MainPageViewModel.InitializeAsync();
 
-    if (!MainViewModel.UserDataEditorViewModel.CheckValid().Success)
+    if (!MainPageViewModel.UserDataEditorViewModel.CheckValid().Success)
     {
-      MainViewModel.UserDataEditorViewModel.IsUserDataEditorOpen = true;
+      MainPageViewModel.UserDataEditorViewModel.IsUserDataEditorOpen = true;
     }
   }
 
