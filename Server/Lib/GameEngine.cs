@@ -75,6 +75,12 @@ namespace MarketMakingGame.Server.Lib
 
     public async Task<PlayerState> JoinGameAsync(JoinGameRequest request)
     {
+      var player = await _service.DBContext.Players.FindAsync(request.Player.PlayerId);
+      if (player == null)
+      {
+        await _service.DBContext.Players.AddAsync(request.Player);
+      }
+
       var playerState = GameState.PlayerStates
         .FirstOrDefault(x => x.Player.PlayerId == request.Player.PlayerId);
 

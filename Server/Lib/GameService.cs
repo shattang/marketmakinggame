@@ -134,7 +134,7 @@ namespace MarketMakingGame.Server.Lib
       if (gameEngine == null)
       {
         var gameState = await DBContext.GameStates
-          .FirstOrDefaultAsync(x => x.PlayerId == request.Player.PlayerId && x.GameId == request.GameId);
+          .FirstOrDefaultAsync(x => x.GameId == request.GameId);
         if (gameState == null)
         {
           resp.ErrorMessage = "GameId not found";

@@ -23,47 +23,47 @@
     height: 100%;
   }
 </style>
-<p>
-  @if (ViewModel.IsInitialized)
-  {
-    <div class="row" style="border-style: dashed;">
-      @ViewModel.JoinGameResponse.Game.GameName
-      <UserBadge/>
-    </div>
 
-    <div class="row game-community-cards-parent-cls">
-        @for (var i = 0; i < ViewModel.JoinGameResponse.Game.NumberOfRounds; ++i)
-        {
-          <div class="column game-community-cards-child-cls">
-            <img class="game-community-card-img-cls" src="@ViewModel.GetCommunityCardImageUrl(i)"/>
-          </div>
-        }
-    </div>
+<UserBadge/>
 
-    @if (ViewModel.PlayerUpdateResponse.IsDealer)
-    {
-      <div class="row" style="border-style: dashed;">
-        <p>TODO: Dealer Actions</p>
-      </div>
-    }
+@if (ViewModel.IsInitialized)
+{
+  <div class="row" style="border-style: dashed;">
+    @ViewModel.JoinGameResponse.Game.GameName
+  </div>
 
-    <div class="row" style="border-style: dashed;">
-      @{
-        for(var i = 0; i < ViewModel.GameUpdateResponse.PlayerPublicStates.Count; ++i)
-        {
-          var player = ViewModel.GameUpdateResponse.PlayerPublicStates[i];
-          <div>
-              <p>@player.DisplayName</p>
-          </div>
-        }
+  <div class="row game-community-cards-parent-cls">
+      @for (var i = 0; i < ViewModel.JoinGameResponse.Game.NumberOfRounds; ++i)
+      {
+        <div class="column game-community-cards-child-cls">
+          <img class="game-community-card-img-cls" src="@ViewModel.GetCommunityCardImageUrl(i)"/>
+        </div>
       }
+  </div>
+
+  @if (ViewModel.PlayerUpdateResponse.IsDealer)
+  {
+    <div class="row" style="border-style: dashed;">
+      <p>TODO: Dealer Actions</p>
     </div>
   }
-  else
-  {
-    <p>Joining Game @GameId ...</p>
-  }
-</p>
+
+  <div class="row" style="border-style: dashed;">
+    @{
+      for(var i = 0; i < ViewModel.GameUpdateResponse.PlayerPublicStates.Count; ++i)
+      {
+        var player = ViewModel.GameUpdateResponse.PlayerPublicStates[i];
+        <div>
+            <p>@player.DisplayName</p>
+        </div>
+      }
+    }
+  </div>
+}
+else
+{
+  <p>Joining Game @GameId ...</p>
+}
 
 @code {
   [Parameter]
@@ -77,6 +77,11 @@
     if (!UserDataEditorViewModel.CheckValid().Success)
     {
       UserDataEditorViewModel.IsUserDataEditorOpen = true;
+
+      while(!UserDataEditorViewModel.CheckValid().Success)
+      {
+        await Task.Delay(200);
+      }
     }
 
     ViewModel.GameId = GameId;
