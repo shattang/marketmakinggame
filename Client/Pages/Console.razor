@@ -3,7 +3,8 @@
 @using Lib
 @using MarketMakingGame.Shared.Messages
 @using MarketMakingGame.Shared.Models
-@inject MainPageViewModel MainViewModel
+@inject UserDataEditorViewModel UserDataEditorViewModel
+@inject GameClient GameClient
 
 <div class="form-group">
   <label>
@@ -26,10 +27,11 @@
 
   protected override async Task OnInitializedAsync()
   {
-    MainViewModel.GameClient.OnIsConnectedChanged += OnIsConnectedChanged;
-    MainViewModel.GameClient.OnCreateGameResponse += OnCreateGameResponse;
-    MainViewModel.GameClient.OnJoinGameResponse += OnJoinGameResponse;
-    await MainViewModel.InitializeAsync();
+    await UserDataEditorViewModel.InitViewModelAsync();
+    GameClient.OnIsConnectedChanged += OnIsConnectedChanged;
+    GameClient.OnCreateGameResponse += OnCreateGameResponse;
+    GameClient.OnJoinGameResponse += OnJoinGameResponse;
+    await GameClient.InitViewModelAsync();
   }
 
   void OnIsConnectedChanged(bool isConnected)
@@ -59,39 +61,34 @@
     {
       Player = new Player() 
       { 
-        DisplayName = MainViewModel.UserDataEditorViewModel.Data.DisplayName, 
-        PlayerId = MainViewModel.UserDataEditorViewModel.Data.PlayerId,
-        AvatarSeed = MainViewModel.UserDataEditorViewModel.Data.AvatarSeed
+        DisplayName = UserDataEditorViewModel.Data.DisplayName, 
+        PlayerId = UserDataEditorViewModel.Data.PlayerId,
+        AvatarSeed = UserDataEditorViewModel.Data.AvatarSeed
       },
       Game = new Game()
       {
         GameName = messageInput
       }
     };
-    return MainViewModel.GameClient.SendRequestAsync("CreateGame", message);
+    return GameClient.SendRequestAsync("CreateGame", message);
   }
 
   Task SendJoinGameRequest()
   {
     var message = new JoinGameRequest()
     {
-      Player = new Player() 
-      { 
-        DisplayName = MainViewModel.UserDataEditorViewModel.Data.DisplayName, 
-        PlayerId = MainViewModel.UserDataEditorViewModel.Data.PlayerId,
-        AvatarSeed = MainViewModel.UserDataEditorViewModel.Data.AvatarSeed
-      },
+      Player = UserDataEditorViewModel.Data,
       GameId = messageInput
     };
-    return MainViewModel.GameClient.SendRequestAsync("JoinGame", message);
+    return GameClient.SendRequestAsync("JoinGame", message);
   }
 
-  public bool IsConnected => MainViewModel.GameClient.IsConnected;
+  public bool IsConnected => GameClient.IsConnected;
 
   public void Dispose()
   {
-    MainViewModel.GameClient.OnIsConnectedChanged -= OnIsConnectedChanged;
-    MainViewModel.GameClient.OnCreateGameResponse -= OnCreateGameResponse;
-    MainViewModel.GameClient.OnJoinGameResponse -= OnJoinGameResponse;
+    GameClient.OnIsConnectedChanged -= OnIsConnectedChanged;
+    GameClient.OnCreateGameResponse -= OnCreateGameResponse;
+    GameClient.OnJoinGameResponse -= OnJoinGameResponse;
   }
 }

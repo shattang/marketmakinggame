@@ -7,6 +7,8 @@ using System.Collections.Generic;
 using MarketMakingGame.Shared.Messages;
 using MarketMakingGame.Shared.Models;
 using MarketMakingGame.Shared.Lib;
+using Microsoft.AspNetCore.Components;
+using Microsoft.Extensions.Logging;
 
 namespace MarketMakingGame.Client.Lib
 {
@@ -18,8 +20,10 @@ namespace MarketMakingGame.Client.Lib
     private const string DEFAULT_SUBMIT_BUTTON_ICON = "checked";
     private const string DEFAULT_REQUEST_FAILED_MESSAGE = "Request timed out";
 
-    private readonly MainPageViewModel MainViewModel;
+    private readonly ILogger _logger;
     private readonly ILocalStorageService _localStorage;
+    private readonly NavigationManager _navManager;
+    private readonly GameClient _gameClient;
     private CreateGameRequest _request = null;
 
     public Game Data { get; set; } = new Game();
@@ -28,12 +32,15 @@ namespace MarketMakingGame.Client.Lib
     public string SubmitButtonIcon { get; private set; } = DEFAULT_SUBMIT_BUTTON_ICON;
     public bool IsCreateGameFailedDialogVisible { get; set; } = false;
     public string CreateGameFailedDialogMessage { get; private set; } = DEFAULT_REQUEST_FAILED_MESSAGE;
-    public bool IsSubmitButtonDisabled => MainViewModel.GameClient.IsConnected && !CheckValid().Success;
+    public bool IsSubmitButtonDisabled => _gameClient.IsConnected && !CheckValid().Success;
 
-    public GameManagerViewModel(MainPageViewModel mainView, ILocalStorageService localStorage)
+    public GameManagerViewModel(GameClient gameClient, NavigationManager navManager, 
+      ILocalStorageService localStorage, ILoggerProvider loggerProvider)
     {
-      this.MainViewModel = mainView;
+      this._logger = loggerProvider.CreateLogger(nameof(GameManagerViewModel));
+      this._gameClient = gameClient;
       this._localStorage = localStorage;
+      this._navManager = navManager;
       this.Data.GameId = Guid.NewGuid().ToBase62();
     }
 
@@ -42,9 +49,10 @@ namespace MarketMakingGame.Client.Lib
       return ValidationHelpers.ValidateObject(this.Data);
     }
 
-    public override async Task InitializeAsync()
+    protected override async Task InitializeAsync()
     {
-      MainViewModel.GameClient.OnCreateGameResponse += OnCreateGameResponse;
+      await _gameClient.InitViewModelAsync();
+      _gameClient.OnCreateGameResponse += OnCreateGameResponse;
       var createdGames = await _localStorage.GetItemAsync<List<Game>>(CREATED_GAMES_KEY);
       if (createdGames == null || createdGames.Count == 0)
       {
@@ -56,12 +64,12 @@ namespace MarketMakingGame.Client.Lib
         {
           GameIds = createdGames.Select(x => x.GameId).ToList()
         };
-
-        var resp = await MainViewModel.GameClient.InvokeRequestAsync<GetGameInfoResponse>("GetGameInfo", req);
+        var resp = await _gameClient.InvokeRequestAsync<GetGameInfoResponse>("GetGameInfo", req);
         CreatedGames = resp.IsSuccess ? resp.Games : new List<Game>();
       }
       await _localStorage.SetItemAsync(CREATED_GAMES_KEY, CreatedGames);
-      InvokeStateChanged(EventArgs.Empty);
+      state = STATE_INITIALIZED;
+      _logger.LogInformation("Init!");
     }
 
     void OnCreateGameResponse(CreateGameResponse response)
@@ -74,7 +82,7 @@ namespace MarketMakingGame.Client.Lib
         {
           CreatedGames.Add(response.Game);
           _ = _localStorage.SetItemAsync(CREATED_GAMES_KEY, CreatedGames);
-          MainViewModel.ShowGamePlayer(response.Game);
+          ShowGamePlayer(response.Game);
         }
         else
         {
@@ -95,16 +103,8 @@ namespace MarketMakingGame.Client.Lib
 
       _request = new CreateGameRequest()
       {
-        Game = new Game()
-        {
-          GameName = Data.GameName
-        },
-        Player = new Player()
-        {
-          AvatarSeed = MainViewModel.UserDataEditorViewModel.Data.AvatarSeed,
-          PlayerId = MainViewModel.UserDataEditorViewModel.Data.PlayerId,
-          DisplayName = MainViewModel.UserDataEditorViewModel.Data.DisplayName
-        }
+        Game = new Game(){ GameName = Data.GameName },
+        Player = await _localStorage.GetItemAsync<Player>(UserDataEditorViewModel.USER_DATA_KEY)
       };
 
       SubmitButtonText = "Waiting ...";
@@ -113,7 +113,7 @@ namespace MarketMakingGame.Client.Lib
 
       try
       {
-        await MainViewModel.GameClient.SendRequestAsync("CreateGame", _request);
+        await _gameClient.SendRequestAsync("CreateGame", _request);
       }
       catch (Exception ex)
       {
@@ -137,7 +137,12 @@ namespace MarketMakingGame.Client.Lib
     public void OnJoinGameButtonClicked(int index)
     {
       var info = CreatedGames[index];
-      MainViewModel.ShowGamePlayer(info);
+      ShowGamePlayer(info);
+    }
+
+    internal void ShowGamePlayer(Game game)
+    {
+      _navManager.NavigateTo($"/playgame/{game.GameId}");
     }
 
     private void ResetRequest()
@@ -149,7 +154,7 @@ namespace MarketMakingGame.Client.Lib
 
     public override void Dispose()
     {
-      MainViewModel.GameClient.OnCreateGameResponse -= OnCreateGameResponse;
+      _gameClient.OnCreateGameResponse -= OnCreateGameResponse;
     }
   }
 }

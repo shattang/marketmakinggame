@@ -30,9 +30,11 @@ namespace MarketMakingGame.Client
       builder.Services.AddBlazorise(options => { options.ChangeTextOnKeyPress = true; });
       builder.Services.AddBootstrapProviders();
       builder.Services.AddFontAwesomeIcons();
-      builder.Services.AddScoped<MainPageViewModel>();
+      builder.Services.AddScoped<GameClient>();
       builder.Services.AddScoped<GamePlayerViewModel>();
-      
+      builder.Services.AddScoped<UserDataEditorViewModel>();
+      builder.Services.AddScoped<GameManagerViewModel>();
+
       var webAssemblyHost = builder.Build();
       webAssemblyHost.Services
       .UseBootstrapProviders()

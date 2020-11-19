@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace MarketMakingGame.Client.Lib
 {
-  public class GameClient : IDisposable
+  public class GameClient : BaseViewModel
   {
     private const string GAMEHUB_NAME = "gamehub";
     private HubConnection _hubConnection;
@@ -70,11 +70,12 @@ namespace MarketMakingGame.Client.Lib
         OnGameUpdateResponse(obj);
     }
 
-    public async Task InitializeAsync()
+    protected override async Task InitializeAsync()
     {
       await _hubConnection.StartAsync();
+      state = STATE_INITIALIZED;
       InvokeOnIsConnectedChanged();
-      _logger.LogDebug("GameClient Started!");
+      _logger.LogInformation("Init!");
     }
 
     public Task SendRequestAsync(string methodName, BaseRequest request)
@@ -139,7 +140,7 @@ namespace MarketMakingGame.Client.Lib
         OnJoinGameResponse(response);
     }
 
-    public void Dispose()
+    public override void Dispose()
     {
       _ = _hubConnection.DisposeAsync();
     }
@@ -157,7 +158,6 @@ namespace MarketMakingGame.Client.Lib
     public event Action<DealGameResponse> OnDealGameResponse;
     public event Action<UpdateQuoteResponse> OnUpdateQuoteResponse;
     public event Action<TradeResponse> OnTradeResponse;
-
     public event Action<bool> OnIsConnectedChanged;
 
     public override string ToString()

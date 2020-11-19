@@ -4,12 +4,14 @@ using Blazored.LocalStorage;
 using MarketMakingGame.Shared.Models;
 using MarketMakingGame.Shared.Lib;
 using System.ComponentModel.DataAnnotations;
+using Microsoft.Extensions.Logging;
 
 namespace MarketMakingGame.Client.Lib
 {
   public class UserDataEditorViewModel : BaseViewModel
   {
     public const String USER_DATA_KEY = "MMG.UserData";
+    private readonly ILogger _logger;
     private readonly ILocalStorageService _localStorage;
     public Player Data { get; set; } = new Player();
     private bool _isUserDataEditorOpen = false;
@@ -30,8 +32,9 @@ namespace MarketMakingGame.Client.Lib
       }
     }
 
-    public UserDataEditorViewModel(ILocalStorageService localStorage)
+    public UserDataEditorViewModel(ILoggerProvider loggerProvider, ILocalStorageService localStorage)
     {
+      _logger = loggerProvider.CreateLogger(nameof(UserDataEditorViewModel));
       _localStorage = localStorage;
     }
 
@@ -40,7 +43,7 @@ namespace MarketMakingGame.Client.Lib
       return ValidationHelpers.ValidateObject(this.Data);
     }
 
-    public override async Task InitializeAsync()
+    protected override async Task InitializeAsync()
     {
       var data = await _localStorage.GetItemAsync<Player>(USER_DATA_KEY);
       if (data == null)
@@ -54,6 +57,8 @@ namespace MarketMakingGame.Client.Lib
         await _localStorage.SetItemAsync(USER_DATA_KEY, data);
       }
       Data = data;
+      state = STATE_INITIALIZED;
+      _logger.LogInformation("Init!");
       InvokeStateChanged(EventArgs.Empty);
     }
 

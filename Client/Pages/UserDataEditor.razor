@@ -1,15 +1,15 @@
 @implements IDisposable
 @using MarketMakingGame.Client.Lib
-@inject MainPageViewModel MainViewModel
+@inject UserDataEditorViewModel UserDataEditorViewModel
 
 <div class="mat-layout-grid">
   <div class="mat-layout-grid-inner">
     <div class="mat-layout-grid-cell-span mat-layout-grid-cell-span-2">
-      <img src="@ViewModel.AvatarUrl" width=64 height=64 @onclick="MainViewModel.UserDataEditorViewModel.RefreshAvatar"
+      <img src="@ViewModel.AvatarUrl" width=64 height=64 @onclick="UserDataEditorViewModel.RefreshAvatar"
 style="border-radius: 10%;border-style: dotted;border-width: thin;" title="Click to change Avatar" />
     </div>
     <div class="mat-layout-grid-cell mat-layout-grid-cell-span-6">
-      <EditForm Model="MainViewModel.UserDataEditorViewModel">
+      <EditForm Model="UserDataEditorViewModel">
         <DataAnnotationsValidator />
         <MatStringField Label="Display Name" @bind-Value="@ViewModel.Data.DisplayName" />
         <ValidationMessage For="@(() => @ViewModel.Data.DisplayName)" style="font-size: x-small;" />
@@ -19,12 +19,12 @@ style="border-radius: 10%;border-style: dotted;border-width: thin;" title="Click
 </div>
 
 @code {
-  UserDataEditorViewModel ViewModel => MainViewModel.UserDataEditorViewModel;
+  UserDataEditorViewModel ViewModel => UserDataEditorViewModel;
 
   protected override async Task OnInitializedAsync()
   {
     ViewModel.StateChanged += OnViewModelChanged;
-    await MainViewModel.InitializeAsync();
+    await ViewModel.InitViewModelAsync();
   }
 
   void OnViewModelChanged(EventArgs e)

@@ -1,9 +1,9 @@
 @implements IDisposable
 @using Lib
 @using System
-@inject MainPageViewModel MainViewModel
+@inject UserDataEditorViewModel UserDataEditorViewModel
 
-<MatDialog @bind-IsOpen="@MainViewModel.UserDataEditorViewModel.IsUserDataEditorOpen" CanBeClosed="false">
+<MatDialog @bind-IsOpen="@ViewModel.IsUserDataEditorOpen" CanBeClosed="false">
   <MatDialogTitle>Select Avatar</MatDialogTitle>
   <MatDialogContent>
     <UserDataEditor />
@@ -14,16 +14,18 @@
 </MatDialog>
 
 <MatButton OnClick="@OpenUserDataEditorDialog">
-  <img src="@MainViewModel.UserDataEditorViewModel.AvatarUrl" width=32 height=32 />
-  @MainViewModel.UserDataEditorViewModel.Data.DisplayName
+  <img src="@ViewModel.AvatarUrl" width=32 height=32 />
+  @ViewModel.Data.DisplayName
 </MatButton>
 
 @code
 {
+  public UserDataEditorViewModel ViewModel => UserDataEditorViewModel;
+
   protected override async Task OnInitializedAsync()
   {
-    MainViewModel.UserDataEditorViewModel.StateChanged += OnUserDataViewModelChanged;
-    await MainViewModel.InitializeAsync();
+    ViewModel.StateChanged += OnUserDataViewModelChanged;
+    await ViewModel.InitViewModelAsync();
   }
 
   void OnUserDataViewModelChanged(EventArgs e)
@@ -33,24 +35,24 @@
 
   void OpenUserDataEditorDialog()
   {
-    MainViewModel.UserDataEditorViewModel.IsUserDataEditorOpen = true;
+    ViewModel.IsUserDataEditorOpen = true;
   }
 
   void OnUserDataEditorDialogClickOk()
   {
-    var res = MainViewModel.UserDataEditorViewModel.CheckValid();
+    var res = ViewModel.CheckValid();
     if (!res.Success)
     {
       System.Console.WriteLine(res.ErrorMessages);
-      System.Console.WriteLine(MainViewModel.UserDataEditorViewModel.Data);
+      System.Console.WriteLine(ViewModel.Data);
       return;
     }
-    MainViewModel.UserDataEditorViewModel.SaveUserData();
-    MainViewModel.UserDataEditorViewModel.IsUserDataEditorOpen = false;
+    ViewModel.SaveUserData();
+    ViewModel.IsUserDataEditorOpen = false;
   }
 
   public void Dispose()
   {
-    MainViewModel.UserDataEditorViewModel.StateChanged -= OnUserDataViewModelChanged;
+    ViewModel.StateChanged -= OnUserDataViewModelChanged;
   }
 }

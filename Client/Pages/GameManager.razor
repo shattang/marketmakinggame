@@ -1,6 +1,7 @@
+@page "/"
 @implements IDisposable
 @using Lib
-@inject MainPageViewModel MainViewModel
+@inject GameManagerViewModel GameManagerViewModel
 
 <MatDialog @bind-IsOpen="@ViewModel.IsCreateGameFailedDialogVisible">
   <MatDialogTitle>
@@ -21,64 +22,92 @@
   }
 </style>
 
-@if (ViewModel.CreatedGames == null)
-{
-  <p>Loading ...</p>
-}
-else
-{
-  <MatAccordion>
-      <MatExpansionPanel @bind-Expanded="@IsCreateGamePanelOpen">
-          <MatExpansionPanelSummary id="create-game-expansion">
-              <MatExpansionPanelHeader>
-                <div class="row">
-                  <div class="column"><MatIcon Icon="edit"></MatIcon></div>
-                  <div class="column">New Game</div>
-                </div>
-              </MatExpansionPanelHeader>
-          </MatExpansionPanelSummary>
-          <MatExpansionPanelDetails>
-              <EditForm Model="ViewModel">
-                <DataAnnotationsValidator />
-                <MatTextField FullWidth="true" Label="Game Name" @bind-Value="@ViewModel.Data.GameName" />
-                <ValidationMessage For="@(() => @ViewModel.Data.GameName)" style="font-size: x-small;" />
-              </EditForm>
-              <MatButton Raised="true" TrailingIcon="@ViewModel.SubmitButtonIcon" OnClick="@ViewModel.OnSubmitButtonClicked"
-  Disabled="@ViewModel.IsSubmitButtonDisabled">@ViewModel.SubmitButtonText
-              </MatButton>
-          </MatExpansionPanelDetails>
-      </MatExpansionPanel>
+<div>
+  <table style="width: 100%;">
+    <tr>
+      <td style="width: 10%;">
+      </td>
+      <td style="width: 80%;">
+        <div style="text-align: center; display: inline-block; width: 100%;">
+          <MatHeadline5 style="font-family: font-family: 'Times New Roman', Times, serif;"><img src="images/poker.png" width=32
+            height=32 /> The Market Maker's Poker</MatHeadline5>
+        </div>
+      </td>
+      <td style="width: 10%;">
+        <UserBadge />
+      </td>
+    </tr>
+  </table>
 
-    @if (ViewModel.CreatedGames.Count > 0)
+  <p></p>
+  <MatDivider />
+  <p></p>
+
+  @if (ViewModel.IsInitialized)
+  {
+    @if (ViewModel.CreatedGames == null)
     {
-      <MatExpansionPanel @bind-Expanded="@IsJoinGamePanelOpen">
-          <MatExpansionPanelSummary id="join-game-expansion">
-              <MatExpansionPanelHeader>
-                <div class="row">
-                  <div class="column"><MatIcon Icon="play_arrow"></MatIcon></div>
-                  <div class="column">Join Game</div>
-                </div>
-              </MatExpansionPanelHeader>
-          </MatExpansionPanelSummary>
-          <MatExpansionPanelDetails>
-            <p></p>
-            @for(var i = 0; i < ViewModel.CreatedGames.Count; ++i)
-            {
-              var gameIndex = i;
-              <p>
-                <MatButton style="width: 100%;" Outlined="true" OnClick="@(() => ViewModel.OnJoinGameButtonClicked(gameIndex))">
-                  @ViewModel.CreatedGames[gameIndex].GameName</MatButton>
-              </p>
-            }
-          </MatExpansionPanelDetails>
-      </MatExpansionPanel>
+      <p>Loading ...</p>
     }
-  </MatAccordion>
-}
+    else
+    {
+      <MatAccordion>
+          <MatExpansionPanel @bind-Expanded="@IsCreateGamePanelOpen">
+              <MatExpansionPanelSummary id="create-game-expansion">
+                  <MatExpansionPanelHeader>
+                    <div class="row">
+                      <div class="column"><MatIcon Icon="edit"></MatIcon></div>
+                      <div class="column">New Game</div>
+                    </div>
+                  </MatExpansionPanelHeader>
+              </MatExpansionPanelSummary>
+              <MatExpansionPanelDetails>
+                  <EditForm Model="ViewModel">
+                    <DataAnnotationsValidator />
+                    <MatTextField FullWidth="true" Label="Game Name" @bind-Value="@ViewModel.Data.GameName" />
+                    <ValidationMessage For="@(() => @ViewModel.Data.GameName)" style="font-size: x-small;" />
+                  </EditForm>
+                  <MatButton Raised="true" TrailingIcon="@ViewModel.SubmitButtonIcon" OnClick="@ViewModel.OnSubmitButtonClicked"
+      Disabled="@ViewModel.IsSubmitButtonDisabled">@ViewModel.SubmitButtonText
+                  </MatButton>
+              </MatExpansionPanelDetails>
+          </MatExpansionPanel>
 
+        @if (ViewModel.CreatedGames.Count > 0)
+        {
+          <MatExpansionPanel @bind-Expanded="@IsJoinGamePanelOpen">
+              <MatExpansionPanelSummary id="join-game-expansion">
+                  <MatExpansionPanelHeader>
+                    <div class="row">
+                      <div class="column"><MatIcon Icon="play_arrow"></MatIcon></div>
+                      <div class="column">Join Game</div>
+                    </div>
+                  </MatExpansionPanelHeader>
+              </MatExpansionPanelSummary>
+              <MatExpansionPanelDetails>
+                <p></p>
+                @for(var i = 0; i < ViewModel.CreatedGames.Count; ++i)
+                {
+                  var gameIndex = i;
+                  <p>
+                    <MatButton style="width: 100%;" Outlined="true" OnClick="@(() => ViewModel.OnJoinGameButtonClicked(gameIndex))">
+                      @ViewModel.CreatedGames[gameIndex].GameName</MatButton>
+                  </p>
+                }
+              </MatExpansionPanelDetails>
+          </MatExpansionPanel>
+        }
+      </MatAccordion>
+    }
+  }
+  else
+  {
+    <p>Loading ...</p>
+  }
+</div>
 
 @code {
-  GameManagerViewModel ViewModel => MainViewModel.GameManagerViewModel;
+  GameManagerViewModel ViewModel => GameManagerViewModel;
 
   public bool IsCreateGamePanelOpen
   {
@@ -93,8 +122,8 @@ else
 
   protected override async Task OnInitializedAsync()
   {
-    MainViewModel.GameManagerViewModel.StateChanged += OnViewModelChanged;
-    await MainViewModel.InitializeAsync();
+    ViewModel.StateChanged += OnViewModelChanged;
+    await ViewModel.InitViewModelAsync();
     IsCreateGamePanelOpen = ViewModel.CreatedGames == null || ViewModel.CreatedGames.Count == 0;
     StateHasChanged();
   }
@@ -106,6 +135,6 @@ else
 
   public void Dispose()
   {
-    MainViewModel.GameManagerViewModel.StateChanged -= OnViewModelChanged;
+    ViewModel.StateChanged -= OnViewModelChanged;
   }
 }

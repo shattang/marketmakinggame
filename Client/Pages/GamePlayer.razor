@@ -1,21 +1,23 @@
 @page "/playgame/{gameid}"
+@implements IDisposable
 @using MarketMakingGame.Client.Lib
 @inject GamePlayerViewModel GamePlayerViewModel
+@inject UserDataEditorViewModel UserDataEditorViewModel
 
 <style>
-  .community-card-img-class {
+  .game-community-card-img-cls {
     width: 100%;
     height: 100%;
     max-width:100%;
     max-height:100%;
   }
-  .community-cards-parent {
+  .game-community-cards-parent-cls {
     display: flex;
     flex-flow: row;
     width:100%;
     height: 100%;
   }
-  .community-cards-child {
+  .game-community-cards-child-cls {
     flex-grow: 1;
     flex-shrink: 1;
     height: 100%;
@@ -26,19 +28,35 @@
   {
     <div class="row" style="border-style: dashed;">
       @ViewModel.JoinGameResponse.Game.GameName
+      <UserBadge/>
     </div>
 
-    <div class="row community-cards-parent">
+    <div class="row game-community-cards-parent-cls">
         @for (var i = 0; i < ViewModel.JoinGameResponse.Game.NumberOfRounds; ++i)
         {
-          <div class="column community-cards-child">
-            <img class="community-card-img-class" src="@ViewModel.GetCommunityCardImageUrl(i)"/>
+          <div class="column game-community-cards-child-cls">
+            <img class="game-community-card-img-cls" src="@ViewModel.GetCommunityCardImageUrl(i)"/>
           </div>
         }
     </div>
 
+    @if (ViewModel.PlayerUpdateResponse.IsDealer)
+    {
+      <div class="row" style="border-style: dashed;">
+        <p>TODO: Dealer Actions</p>
+      </div>
+    }
+
     <div class="row" style="border-style: dashed;">
-      <p>TODO: Users</p>
+      @{
+        for(var i = 0; i < ViewModel.GameUpdateResponse.PlayerPublicStates.Count; ++i)
+        {
+          var player = ViewModel.GameUpdateResponse.PlayerPublicStates[i];
+          <div>
+              <p>@player.DisplayName</p>
+          </div>
+        }
+      }
     </div>
   }
   else
@@ -46,13 +64,6 @@
     <p>Joining Game @GameId ...</p>
   }
 </p>
-
-@* @for (var i = 0; i < ViewModel.JoinGameResponse.Game.NumberOfRounds; ++i)
-        {
-          <div class="column community-card-panel-class">
-            <img width=128 height=256 src="@ViewModel.GetCommunityCardImageUrl(i)"/>
-          </div>
-        } *@
 
 @code {
   [Parameter]
@@ -62,13 +73,24 @@
 
   protected override async Task OnInitializedAsync()
   {
+    await UserDataEditorViewModel.InitViewModelAsync();
+    if (!UserDataEditorViewModel.CheckValid().Success)
+    {
+      UserDataEditorViewModel.IsUserDataEditorOpen = true;
+    }
+
     ViewModel.GameId = GameId;
     ViewModel.StateChanged += OnViewModelChanged;
-    await ViewModel.InitializeAsync();
+    await ViewModel.InitViewModelAsync();
   }
 
   void OnViewModelChanged(EventArgs e)
   {
     StateHasChanged();
+  }
+
+  public void Dispose()
+  {
+    ViewModel.StateChanged -= OnViewModelChanged;
   }
 }
