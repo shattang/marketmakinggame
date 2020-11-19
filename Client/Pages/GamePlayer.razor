@@ -2,9 +2,57 @@
 @using MarketMakingGame.Client.Lib
 @inject GamePlayerViewModel GamePlayerViewModel
 
+<style>
+  .community-card-img-class {
+    width: 100%;
+    height: 100%;
+    max-width:100%;
+    max-height:100%;
+  }
+  .community-cards-parent {
+    display: flex;
+    flex-flow: row;
+    width:100%;
+    height: 100%;
+  }
+  .community-cards-child {
+    flex-grow: 1;
+    flex-shrink: 1;
+    height: 100%;
+  }
+</style>
 <p>
-  Joining Game: @GameId
+  @if (ViewModel.IsInitialized)
+  {
+    <div class="row" style="border-style: dashed;">
+      @ViewModel.JoinGameResponse.Game.GameName
+    </div>
+
+    <div class="row community-cards-parent">
+        @for (var i = 0; i < ViewModel.JoinGameResponse.Game.NumberOfRounds; ++i)
+        {
+          <div class="column community-cards-child">
+            <img class="community-card-img-class" src="@ViewModel.GetCommunityCardImageUrl(i)"/>
+          </div>
+        }
+    </div>
+
+    <div class="row" style="border-style: dashed;">
+      <p>TODO: Users</p>
+    </div>
+  }
+  else
+  {
+    <p>Joining Game @GameId ...</p>
+  }
 </p>
+
+@* @for (var i = 0; i < ViewModel.JoinGameResponse.Game.NumberOfRounds; ++i)
+        {
+          <div class="column community-card-panel-class">
+            <img width=128 height=256 src="@ViewModel.GetCommunityCardImageUrl(i)"/>
+          </div>
+        } *@
 
 @code {
   [Parameter]
@@ -15,6 +63,12 @@
   protected override async Task OnInitializedAsync()
   {
     ViewModel.GameId = GameId;
+    ViewModel.StateChanged += OnViewModelChanged;
     await ViewModel.InitializeAsync();
+  }
+
+  void OnViewModelChanged(EventArgs e)
+  {
+    StateHasChanged();
   }
 }

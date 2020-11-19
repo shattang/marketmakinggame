@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Threading.Tasks;
 using System.ComponentModel.DataAnnotations;
 using Blazored.LocalStorage;
@@ -55,21 +56,39 @@ namespace MarketMakingGame.Client.Lib
     {
       var isUpdated = this.GameUpdateResponse != null;
       this.GameUpdateResponse = obj;
-      if (isUpdated)
-        InvokeStateChanged(EventArgs.Empty);
+      SetInitializedIfReady();
+      InvokeStateChanged(EventArgs.Empty);
     }
 
     private void HandlePlayerUpdateResponse(PlayerUpdateResponse obj)
     {
       var isUpdated = this.PlayerUpdateResponse != null;
       this.PlayerUpdateResponse = obj;
-      if (isUpdated)
-        InvokeStateChanged(EventArgs.Empty);
+      SetInitializedIfReady();
+      InvokeStateChanged(EventArgs.Empty);
     }
 
     private void HandleJoinGameResponse(JoinGameResponse obj)
     {
       this.JoinGameResponse = obj;
+      SetInitializedIfReady();
+      InvokeStateChanged(EventArgs.Empty);
+    }
+
+    private void SetInitializedIfReady() 
+    {
+      if (JoinGameResponse == null || PlayerUpdateResponse == null || GameUpdateResponse == null)
+      {
+        return;
+      }
+
+      if (!JoinGameResponse.IsSuccess)
+      {
+        return;
+      }
+      
+      state = STATE_INITIALIZED;
+      Logger.LogInformation("Init!");
     }
 
     public override (bool Success, string ErrorMessages) CheckValid()
@@ -98,20 +117,20 @@ namespace MarketMakingGame.Client.Lib
       joinReq.Player = await LocalStorageService.GetItemAsync<Player>(UserDataEditorViewModel.USER_DATA_KEY);
       await GameClient.SendRequestAsync("JoinGame", joinReq);
       await Task.Delay(REQUEST_DELAY_MILLIS);
-
-      if (JoinGameResponse == null || PlayerUpdateResponse == null || GameUpdateResponse == null)
+      if (!IsInitialized)
       {
-        throw new TimeoutException();
+        throw (JoinGameResponse.IsSuccess ? new TimeoutException(): new Exception(JoinGameResponse.ErrorMessage));
       }
+    }
 
-      if (!JoinGameResponse.IsSuccess)
+    public string GetCommunityCardImageUrl(int index)
+    {
+      if (index < GameUpdateResponse.CommunityCardIds.Count)
       {
-        throw new Exception(JoinGameResponse.ErrorMessage);
+        var cardId = GameUpdateResponse.CommunityCardIds[index];
+        return Cards.Where(x => x.CardId == cardId).DefaultIfEmpty(UnopenedCard).First().CardImageUrl;
       }
-      
-      state = STATE_INITIALIZED;
-      Logger.LogInformation("Init!");
-      InvokeStateChanged(EventArgs.Empty);
+      return UnopenedCard.CardImageUrl;
     }
 
     public override void Dispose()
