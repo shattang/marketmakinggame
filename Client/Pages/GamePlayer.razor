@@ -19,7 +19,6 @@
   }
   .game-community-cards-child-cls {
     height: 100%;
-    border: dotted;
     margin: 5px;
   }
 </style>
@@ -35,12 +34,12 @@
     </div>
 
     <div class="row game-community-cards-parent-cls">
-        <div class="column game-community-cards-child-cls">
-          <img class="game-community-card-img-cls" src="@ViewModel.GamePlayerCardImageUrl()"/>
+        <div class="column game-community-cards-child-cls mat-elevation-z5">
+            <img class="game-community-card-img-cls" src="@ViewModel.GamePlayerCardImageUrl()"/>
         </div>
         @for (var i = 0; i < ViewModel.JoinGameResponse.Game.NumberOfRounds; ++i)
         {
-          <div class="column game-community-cards-child-cls">
+          <div class="column game-community-cards-child-cls mat-elevation-z5">
             <img class="game-community-card-img-cls" src="@ViewModel.GetCommunityCardImageUrl(i)"/>
           </div>
         }
