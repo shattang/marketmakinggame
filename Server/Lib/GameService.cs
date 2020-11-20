@@ -96,14 +96,14 @@ namespace MarketMakingGame.Server.Lib
     {
       _logger.LogInformation("GetGameInfo {}", request);
 
-      var lookup = await DBContext.Games
+      var lookup = await DBContext.GameStates
         .Where(x => request.GameIds.Contains(x.GameId)).ToListAsync();
 
       return new GetGameInfoResponse()
       {
         RequestId = request.RequestId,
         IsSuccess = true,
-        Games = lookup
+        Games = lookup.Select(x => x.Game).ToList()
       };
     }
 
@@ -243,6 +243,7 @@ namespace MarketMakingGame.Server.Lib
         {
           InvokeOnPlayerUpdate(MakePlayerUpdateResponse(playerState));
         }
+        InvokeOnGameUpdate(MakeGameUpdateResponse(gameEngine.GameState));
       }
       else if (request.RequestType == DealGameRequest.RequestTypes.DealNextCommunityCard)
       {

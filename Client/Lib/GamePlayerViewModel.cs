@@ -25,7 +25,7 @@ namespace MarketMakingGame.Client.Lib
       public string Message { get; set; }
     };
 
-    private ILocalStorageService LocalStorageService { get; }
+    private UserDataEditorViewModel UserDataEditor { get; }
     private ILogger Logger { get; }
     private NavigationManager NavigationManager { get; }
     private GameClient GameClient { get; }
@@ -36,10 +36,10 @@ namespace MarketMakingGame.Client.Lib
     public List<Card> Cards { get; set; }
     public Card UnopenedCard { get; set; }
 
-    public GamePlayerViewModel(ILocalStorageService localStorage, ILoggerProvider loggerProvider,
+    public GamePlayerViewModel(UserDataEditorViewModel localStorage, ILoggerProvider loggerProvider,
       NavigationManager navigationManager, GameClient gameClient)
     {
-      LocalStorageService = localStorage;
+      UserDataEditor = localStorage;
       Logger = loggerProvider.CreateLogger(nameof(GamePlayerViewModel));
       NavigationManager = navigationManager;
       GameClient = gameClient;
@@ -77,10 +77,6 @@ namespace MarketMakingGame.Client.Lib
       {
         return;
       }
-      if (!JoinGameResponse.IsSuccess)
-      {
-        return;
-      }
       state = STATE_INITIALIZED;
       Logger.LogInformation("Init!");
     }
@@ -101,13 +97,8 @@ namespace MarketMakingGame.Client.Lib
 
       var joinReq = new JoinGameRequest();
       joinReq.GameId = GameId;
-      joinReq.Player = await LocalStorageService.GetItemAsync<Player>(UserDataEditorViewModel.USER_DATA_KEY);
+      joinReq.Player = UserDataEditor.Data;
       await GameClient.SendRequestAsync("JoinGame", joinReq);
-      await Task.Delay(REQUEST_DELAY_MILLIS);
-      if (!IsInitialized)
-      {
-        throw (JoinGameResponse.IsSuccess ? new TimeoutException() : new Exception(JoinGameResponse.ErrorMessage));
-      }
     }
 
     public string GetCommunityCardImageUrl(int index)
@@ -118,6 +109,12 @@ namespace MarketMakingGame.Client.Lib
         return Cards.Where(x => x.CardId == cardId).DefaultIfEmpty(UnopenedCard).First().CardImageUrl;
       }
       return UnopenedCard.CardImageUrl;
+    }
+
+    public string GamePlayerCardImageUrl()
+    {
+      var cardId = PlayerUpdateResponse.CardId;
+      return Cards.Where(x => x.CardId == cardId).DefaultIfEmpty(UnopenedCard).First().CardImageUrl;
     }
 
     public override void Dispose()

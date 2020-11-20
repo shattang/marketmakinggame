@@ -18,9 +18,9 @@
     height: 100%;
   }
   .game-community-cards-child-cls {
-    flex-grow: 1;
-    flex-shrink: 1;
     height: 100%;
+    border: dotted;
+    margin: 5px;
   }
 </style>
 
@@ -28,37 +28,53 @@
 
 @if (ViewModel.IsInitialized)
 {
-  <div class="row" style="border-style: dashed;">
-    @ViewModel.JoinGameResponse.Game.GameName
-  </div>
-
-  <div class="row game-community-cards-parent-cls">
-      @for (var i = 0; i < ViewModel.JoinGameResponse.Game.NumberOfRounds; ++i)
-      {
-        <div class="column game-community-cards-child-cls">
-          <img class="game-community-card-img-cls" src="@ViewModel.GetCommunityCardImageUrl(i)"/>
-        </div>
-      }
-  </div>
-
-  @if (ViewModel.PlayerUpdateResponse.IsDealer)
+  @if (ViewModel.JoinGameResponse.IsSuccess)
   {
     <div class="row" style="border-style: dashed;">
-      <p>TODO: Dealer Actions</p>
+      @ViewModel.JoinGameResponse.Game.GameName
+    </div>
+
+    <div class="row game-community-cards-parent-cls">
+        <div class="column game-community-cards-child-cls">
+          <img class="game-community-card-img-cls" src="@ViewModel.GamePlayerCardImageUrl()"/>
+        </div>
+        @for (var i = 0; i < ViewModel.JoinGameResponse.Game.NumberOfRounds; ++i)
+        {
+          <div class="column game-community-cards-child-cls">
+            <img class="game-community-card-img-cls" src="@ViewModel.GetCommunityCardImageUrl(i)"/>
+          </div>
+        }
+    </div>
+      
+    @if (ViewModel.PlayerUpdateResponse.IsDealer)
+    {
+      <div class="row" style="border-style: dashed;">
+        <p>TODO: Dealer Actions</p>
+      </div>
+    }
+
+    <div class="row" style="border-style: dashed;">
+      @{
+        for(var i = 0; i < ViewModel.GameUpdateResponse.PlayerPublicStates.Count; ++i)
+        {
+          var player = ViewModel.GameUpdateResponse.PlayerPublicStates[i];
+          <div>
+              <p>@player.DisplayName</p>
+          </div>
+        }
+      }
     </div>
   }
-
-  <div class="row" style="border-style: dashed;">
-    @{
-      for(var i = 0; i < ViewModel.GameUpdateResponse.PlayerPublicStates.Count; ++i)
-      {
-        var player = ViewModel.GameUpdateResponse.PlayerPublicStates[i];
-        <div>
-            <p>@player.DisplayName</p>
-        </div>
-      }
-    }
-  </div>
+  else 
+  {
+    <h1>Error</h1>
+    <p>@ViewModel.JoinGameResponse.ErrorMessage</p>
+  }
+}
+else if (ViewModel.JoinGameResponse?.IsSuccess == false)
+{
+  <h1>Error</h1>
+  <p>@ViewModel.JoinGameResponse.ErrorMessage</p>
 }
 else
 {
@@ -87,6 +103,8 @@ else
     ViewModel.GameId = GameId;
     ViewModel.StateChanged += OnViewModelChanged;
     await ViewModel.InitViewModelAsync();
+
+
   }
 
   void OnViewModelChanged(EventArgs e)
