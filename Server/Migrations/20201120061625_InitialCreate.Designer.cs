@@ -9,7 +9,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace MarketMakingGame.Server.Migrations
 {
     [DbContext(typeof(GameDbContext))]
-    [Migration("20201117225043_InitialCreate")]
+    [Migration("20201120061625_InitialCreate")]
     partial class InitialCreate
     {
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -72,6 +72,9 @@ namespace MarketMakingGame.Server.Migrations
                         .HasColumnType("REAL");
 
                     b.Property<int>("GameStateId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("IsConnected")
                         .HasColumnType("INTEGER");
 
                     b.Property<int>("PlayerCardCardId")

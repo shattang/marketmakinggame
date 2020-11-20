@@ -8,7 +8,7 @@ using Microsoft.AspNetCore.SignalR;
 
 namespace MarketMakingGame.Server.Lib
 {
-  public class GameHubEventManager
+  public class GameHubEventManager: IDisposable
   {
     private class GameMembership
     {
@@ -18,9 +18,11 @@ namespace MarketMakingGame.Server.Lib
 
     private ConcurrentDictionary<string, List<GameMembership>> _connectionToMembership;
     private IHubContext<GameHub> _hubContext;
+    private GameService _gameService;
 
     public GameHubEventManager(GameService gameService, IHubContext<GameHub> hubContext)
     {
+      _gameService = gameService;
       _connectionToMembership = new ConcurrentDictionary<string, List<GameMembership>>();
       _hubContext = hubContext;
       gameService.OnGameUpdate += HandleGameUpdate;
@@ -35,6 +37,7 @@ namespace MarketMakingGame.Server.Lib
         {
           await _hubContext.Groups.RemoveFromGroupAsync(connectionId, m.GameId);
           await _hubContext.Groups.RemoveFromGroupAsync(connectionId, TopicName(m.GameId, m.PlayerId));
+          await _gameService.OnPlayerDisconnectedAsync(m.GameId, m.PlayerId);
         }
       }
     }
@@ -60,6 +63,12 @@ namespace MarketMakingGame.Server.Lib
     private static string TopicName(string gameId, string playerId)
     {
       return $"{gameId}.{playerId}";
+    }
+
+    public void Dispose()
+    {
+      _gameService.OnGameUpdate -= HandleGameUpdate;
+      _gameService.OnPlayerUpdate -= HandlePlayerUpdate;
     }
   }
 }

@@ -94,7 +94,8 @@ namespace MarketMakingGame.Server.Migrations
                     CurrentAsk = table.Column<double>(nullable: true),
                     PositionCashFlow = table.Column<double>(nullable: true),
                     PositionQty = table.Column<double>(nullable: true),
-                    SettlementPnl = table.Column<double>(nullable: true)
+                    SettlementPnl = table.Column<double>(nullable: true),
+                    IsConnected = table.Column<bool>(nullable: false)
                 },
                 constraints: table =>
                 {

@@ -47,11 +47,17 @@ namespace MarketMakingGame.Server.Lib
       {
         await _service.DBContext.Players.AddAsync(request.Player);
       }
+      else
+      {
+        player.AvatarSeed = request.Player.AvatarSeed;
+        player.DisplayName = request.Player.DisplayName;
+      }
 
       PlayerState playerState = new PlayerState()
       {
         PlayerId = request.Player.PlayerId,
-        PlayerCardCardId = _service.UnopenedCard.CardId
+        PlayerCardCardId = _service.UnopenedCard.CardId,
+        IsConnected = true
       };
 
       GameState = new GameState()
@@ -80,6 +86,11 @@ namespace MarketMakingGame.Server.Lib
       {
         await _service.DBContext.Players.AddAsync(request.Player);
       }
+      else
+      {
+        player.AvatarSeed = request.Player.AvatarSeed;
+        player.DisplayName = request.Player.DisplayName;
+      }
 
       var playerState = GameState.PlayerStates
         .FirstOrDefault(x => x.Player.PlayerId == request.Player.PlayerId);
@@ -89,12 +100,18 @@ namespace MarketMakingGame.Server.Lib
         playerState = new PlayerState()
         {
           PlayerId = request.Player.PlayerId,
-          PlayerCardCardId = _service.UnopenedCard.CardId
+          PlayerCardCardId = _service.UnopenedCard.CardId,
+          IsConnected = true
         };
         GameState.PlayerStates.Add(playerState);
 
         await _service.DBContext.SaveChangesAsync();
         _logger.LogInformation("Added PlayerState: PlayerStateId={}", playerState.PlayerStateId);
+      }
+      else
+      {
+        playerState.IsConnected = true;
+        await _service.DBContext.SaveChangesAsync();
       }
 
       return playerState;

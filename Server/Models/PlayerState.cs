@@ -32,6 +32,8 @@ namespace MarketMakingGame.Server.Models
     public double? PositionQty { get; set; }
 
     public double? SettlementPnl { get; set; }
+    
+    public bool IsConnected { get; set; }
 
     public override string ToString()
     {

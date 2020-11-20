@@ -56,6 +56,42 @@ namespace MarketMakingGame.Server.Lib
       _logger.LogInformation("Initialized");
     }
 
+    public async Task OnPlayerDisconnectedAsync(string gameId, string playerId)
+    {
+      var (success, errMessage) = await DeleteGameIfFinished(gameId, playerId);
+      if (success)
+      {
+        _logger.LogInformation("Game deleted on disconnect: GameId={}", gameId);
+        return;
+      }
+      else
+      {
+        Models.GameState gameState;
+        var gameEngine= GameEngines.GetValueOrDefault(gameId);
+        if (gameEngine != null)
+        {
+          gameState = gameEngine.GameState;
+        }
+        else
+        {
+          gameState = await DBContext.GameStates
+            .FirstOrDefaultAsync(x => x.GameId == gameId);
+        }
+        
+        if (gameState != null)
+        {
+          var playerState = gameState.PlayerStates
+            .FirstOrDefault(x => x.PlayerId == playerId);
+          if (playerState != null)
+          {
+            playerState.IsConnected = false;
+            await DBContext.SaveChangesAsync();
+            InvokeOnGameUpdate(MakeGameUpdateResponse(gameState));
+          }
+        }
+      }
+    }
+
     public async Task<GetGameInfoResponse> GetGameInfo(GetGameInfoRequest request)
     {
       _logger.LogInformation("GetGameInfo {}", request);
@@ -142,7 +178,15 @@ namespace MarketMakingGame.Server.Lib
           return;
         }
 
+        if (gameState.IsFinished)
+        {
+          resp.ErrorMessage = "Game is finished";
+          await responseHandler(resp);
+          return;
+        }
+
         gameEngine = new GameEngine(_loggerProvider, this, gameState);
+        GameEngines[gameEngine.GameState.GameId] = gameEngine;
       }
 
       var playerState = await gameEngine.JoinGameAsync(request);
@@ -160,10 +204,24 @@ namespace MarketMakingGame.Server.Lib
 
       var resp = new DealGameResponse() { RequestId = request.RequestId };
 
+      if (request.RequestType == DealGameRequest.RequestTypes.DeleteGame)
+      {
+        (resp.IsSuccess, resp.ErrorMessage) = await DeleteGameIfFinished(request.GameId, request.PlayerId);
+        await responseHandler(resp);
+        return;
+      }
+
       var gameEngine = GameEngines.GetValueOrDefault(request.GameId);
       if (gameEngine == null)
       {
         resp.ErrorMessage = "GameId not found";
+        await responseHandler(resp);
+        return;
+      }
+
+      if (gameEngine.GameState.IsFinished)
+      {
+        resp.ErrorMessage = "Game is finished";
         await responseHandler(resp);
         return;
       }
@@ -239,6 +297,13 @@ namespace MarketMakingGame.Server.Lib
         return;
       }
 
+      if (gameEngine.GameState.IsFinished)
+      {
+        resp.ErrorMessage = "Game is finished";
+        await responseHandler(resp);
+        return;
+      }
+
       (resp.IsSuccess, resp.ErrorMessage) = await gameEngine.UpdateQuote(request);
       await responseHandler(resp);
 
@@ -258,6 +323,13 @@ namespace MarketMakingGame.Server.Lib
       if (gameEngine == null)
       {
         resp.ErrorMessage = "GameId not found";
+        await responseHandler(resp);
+        return;
+      }
+
+      if (gameEngine.GameState.IsFinished)
+      {
+        resp.ErrorMessage = "Game is finished";
         await responseHandler(resp);
         return;
       }
@@ -313,7 +385,9 @@ namespace MarketMakingGame.Server.Lib
         PositionCashFlow = x.PositionCashFlow,
         PositionQty = x.PositionQty,
         SettlementPnl = x.SettlementPnl,
-        SettlementCardId = x.GameState.IsFinished ? (int?)x.PlayerCardCardId : null
+        SettlementCardId = x.GameState.IsFinished ? (int?)x.PlayerCardCardId : null,
+        IsConnected = x.IsConnected,
+        IsPlayerCardDealt = x.PlayerCardCardId != UnopenedCard.CardId
       };
     }
 
@@ -355,6 +429,31 @@ namespace MarketMakingGame.Server.Lib
           _logger.LogError(ex, nameof(InvokeOnPlayerUpdate));
         }
       }
+    }
+
+    private async Task<(bool IsSuccess, string ErrorMessage)> DeleteGameIfFinished(string gameId, string requestingPlayerId)
+    {
+      var gameState = await DBContext.GameStates
+          .FirstOrDefaultAsync(x => x.GameId == gameId);
+      if (gameState == null)
+      {
+        return (false, "GameId not found");
+      }
+
+      if (gameState.PlayerId != requestingPlayerId)
+      {
+        return (false, "Only dealer can initiate this request");
+      }
+
+      if (!gameState.IsFinished)
+      {
+        return (false, "Game is in progress");
+      }
+
+      GameEngines.Remove(gameId, out var _);
+      DBContext.Remove(gameState);
+      await DBContext.SaveChangesAsync();
+      return (true, string.Empty);
     }
 
     public void Dispose()

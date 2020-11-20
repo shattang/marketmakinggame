@@ -72,6 +72,9 @@ namespace MarketMakingGame.Server.Migrations
                     b.Property<int>("GameStateId")
                         .HasColumnType("INTEGER");
 
+                    b.Property<bool>("IsConnected")
+                        .HasColumnType("INTEGER");
+
                     b.Property<int>("PlayerCardCardId")
                         .HasColumnType("INTEGER");
 

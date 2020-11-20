@@ -12,7 +12,8 @@ namespace MarketMakingGame.Shared.Messages
       DealNextCommunityCard,
       LockTrading, 
       UnlockTrading,
-      FinishGame
+      FinishGame,
+      DeleteGame
     }
 
     public string PlayerId { get; set; }

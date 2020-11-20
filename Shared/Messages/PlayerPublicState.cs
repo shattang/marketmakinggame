@@ -24,6 +24,10 @@ namespace MarketMakingGame.Shared.Messages
 
     public int? SettlementCardId { get; set; }
 
+    public bool IsConnected { get; set; }
+
+    public bool IsPlayerCardDealt { get; set; }
+
     public override string ToString()
     {
       return this.ToStringWithProperties();

@@ -25,10 +25,10 @@ namespace MarketMakingGame.Server.Lib
     private readonly Random _random;
     private readonly T _defaultValue;
 
-    public Bag(IEnumerable<T> allItems, IEnumerable<T> drawnItems, T defaultValue, int numDecks = 1)
+    public Bag(IEnumerable<T> allItems, IEnumerable<T> drawnItems, T defaultValue, int numDecks)
     {
       var dealt = drawnItems.GroupBy(x => x).ToDictionary(x => x.Key, x => x.Count());
-      numDecks = Math.Max(Math.Min(numDecks, 1), dealt.Values.Max());
+      numDecks = Math.Max(1, Math.Max(numDecks, dealt.Values.DefaultIfEmpty(0).Max()));
       _items = allItems
         .Select(x => new ItemCount(x, numDecks - dealt.GetValueOrDefault(x, 0)))
         .Where(x => x.Count > 0)

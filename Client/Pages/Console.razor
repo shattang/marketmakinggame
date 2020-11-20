@@ -6,6 +6,8 @@
 @inject UserDataEditorViewModel UserDataEditorViewModel
 @inject GameClient GameClient
 
+<header style="top: 0; left: 0; z-index: 9999; position: sticky;">
+<div style="background-color: darkgrey;">
 <div class="form-group">
   <label>
     Mesage:
@@ -14,11 +16,27 @@
 </div>
 <button @onclick="SendCreateGameRequest" disabled="@(!IsConnected)">Create Game</button>
 <button @onclick="SendJoinGameRequest" disabled="@(!IsConnected)">Join Game</button>
+<button @onclick="SendDealPlayerCardsRequest" disabled="@(!IsConnected)">Deal Player Cards</button>
+<button @onclick="SendDealCommunityCardRequest" disabled="@(!IsConnected)">Deal Community Card</button>
+<button @onclick="SendFinishGameRequest" disabled="@(!IsConnected)">Finish Game</button>
+<button @onclick="SendDeleteGameRequest" disabled="@(!IsConnected)">Delete Game</button>
+
 <hr>
-<ul id="messagesList">
-  @foreach (var message in messages)
-  { <li>@message</li> }
+</div>
+</header>
+
+<ul id="messagesList" style="max-height: 500px; overflow: auto; background-color: lightblue;">
+  @foreach (var message in messages.AsEnumerable().Reverse())
+  { 
+    <li>
+      <div style="background-color: aliceblue;">
+        @message
+      </div>
+    </li> 
+  }
 </ul>
+
+
 
 @code
 {
@@ -29,8 +47,13 @@
   {
     await UserDataEditorViewModel.InitViewModelAsync();
     GameClient.OnIsConnectedChanged += OnIsConnectedChanged;
-    GameClient.OnCreateGameResponse += OnCreateGameResponse;
-    GameClient.OnJoinGameResponse += OnJoinGameResponse;
+    GameClient.OnCreateGameResponse += OnGameResponse;
+    GameClient.OnJoinGameResponse += OnGameResponse;
+    GameClient.OnDealGameResponse += OnGameResponse;
+    GameClient.OnGameUpdateResponse += OnGameResponse;
+    GameClient.OnPlayerUpdateResponse += OnGameResponse;
+    GameClient.OnTradeResponse += OnGameResponse;
+    GameClient.OnUpdateQuoteResponse += OnGameResponse;
     await GameClient.InitViewModelAsync();
   }
 
@@ -39,12 +62,7 @@
     StateHasChanged();
   }
 
-  void OnCreateGameResponse(CreateGameResponse message)
-  {
-    AddToMessageList(message);
-  }
-
-  void OnJoinGameResponse(JoinGameResponse message)
+  void OnGameResponse(BaseResponse message)
   {
     AddToMessageList(message);
   }
@@ -83,12 +101,46 @@
     return GameClient.SendRequestAsync("JoinGame", message);
   }
 
+  Task SendDealPlayerCardsRequest()
+  {
+    return SendDealGameRequest(DealGameRequest.RequestTypes.DealPlayerCards);
+  }
+
+  Task SendDealCommunityCardRequest()
+  {
+    return SendDealGameRequest(DealGameRequest.RequestTypes.DealNextCommunityCard);
+  }
+
+  Task SendFinishGameRequest()
+  {
+    return SendDealGameRequest(DealGameRequest.RequestTypes.FinishGame);
+  }
+
+  Task SendDeleteGameRequest()
+  {
+    return SendDealGameRequest(DealGameRequest.RequestTypes.DeleteGame);
+  }
+
+  Task SendDealGameRequest(DealGameRequest.RequestTypes reqType) 
+  {
+    return GameClient.SendRequestAsync("DealGame", new DealGameRequest() {
+      PlayerId = UserDataEditorViewModel.Data.PlayerId,
+      GameId = messageInput,
+      RequestType = reqType
+    });
+  }
+
   public bool IsConnected => GameClient.IsConnected;
 
   public void Dispose()
   {
     GameClient.OnIsConnectedChanged -= OnIsConnectedChanged;
-    GameClient.OnCreateGameResponse -= OnCreateGameResponse;
-    GameClient.OnJoinGameResponse -= OnJoinGameResponse;
+    GameClient.OnCreateGameResponse -= OnGameResponse;
+    GameClient.OnJoinGameResponse -= OnGameResponse;
+    GameClient.OnDealGameResponse -= OnGameResponse;
+    GameClient.OnGameUpdateResponse -= OnGameResponse;
+    GameClient.OnPlayerUpdateResponse -= OnGameResponse;
+    GameClient.OnTradeResponse -= OnGameResponse;
+    GameClient.OnUpdateQuoteResponse -= OnGameResponse;
   }
 }
