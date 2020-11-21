@@ -5,25 +5,45 @@
 @inject UserDataEditorViewModel UserDataEditorViewModel
 
 <style>
-  .game-community-card-img-cls {
+  .card-image-cls {
     width: 100%;
-    height: 100%;
+    height: 128px;
     max-width:100%;
     max-height:100%;
   }
-  .game-community-cards-parent-cls {
+  .card-group-cls {
     display: flex;
     flex-flow: row;
     width:100%;
     height: 100%;
   }
-  .game-community-cards-child-cls {
+  .community-card-group-cls {
+    background-color: coral;
+    border-style: dotted;
+  }
+  .card-content-cls {
     height: 100%;
     margin: 5px;
   }
 </style>
 
-<UserBadge/>
+<div class="row">
+  <table style="width: 100%;">
+    <tr>
+      <td style="width: 10%;">
+      </td>
+      <td style="width: 80%;">
+        <div style="text-align: center; display: inline-block; width: 100%;">
+          <MatHeadline5 style="font-family: font-family: 'Times New Roman', Times, serif;"><img src="images/poker.png" width=32
+            height=32 /> The Market Maker's Poker</MatHeadline5>
+        </div>
+      </td>
+      <td style="width: 10%;">
+        <UserBadge />
+      </td>
+    </tr>
+  </table>
+</div>
 
 @if (ViewModel.IsInitialized)
 {
@@ -33,43 +53,18 @@
       @ViewModel.JoinGameResponse.Game.GameName
     </div>
 
-    <div class="row game-community-cards-parent-cls">
-        <div class="column game-community-cards-child-cls mat-elevation-z5">
-            <MatCard class="demo-mat-card">
-            <div class="demo-mat-card-content">
-                <MatHeadline6 class="demo-mat-card-clean-margin">
-                    Our Changing Planet
-                </MatHeadline6>
-                <MatSubtitle2 class="demo-mat-card-clean-margin">
-                    by Kurt Wagner
-                </MatSubtitle2>
-            </div>
-            <MatCardContent>
-                <MatCardMedia Wide="true" ImageUrl="https://material-components.github.io/material-components-web-catalog/static/media/photos/3x2/2.jpg"></MatCardMedia>
-                <MatBody2 class="demo-mat-card-content demo-mat-card-clean-margin">
-                    Visit ten places on our planet that are undergoing the biggest changes today.
-                </MatBody2>
-            </MatCardContent>
-            <MatCardActions>
-                <MatCardActionButtons>
-                    <MatButton>Read</MatButton>
-                    <MatButton>Bookmark</MatButton>
-                </MatCardActionButtons>
- 
-                <MatCardActionIcons>
-                    <MatIconButton Icon="@MatIconNames.Favorite"></MatIconButton>
-                    <MatIconButton Icon="@MatIconNames.Dashboard"></MatIconButton>
-                </MatCardActionIcons>
-            </MatCardActions>
-            </MatCard>
-            @* <img class="game-community-card-img-cls" src="@ViewModel.GamePlayerCardImageUrl()"/> *@
+    <div class="row card-group-cls">
+        <div class="column card-content-cls mat-elevation-z5">
+          <img class="card-image-cls" src="@ViewModel.GamePlayerCardImageUrl()"/>
         </div>
-        @for (var i = 0; i < ViewModel.JoinGameResponse.Game.NumberOfRounds; ++i)
-        {
-          <div class="column game-community-cards-child-cls mat-elevation-z5">
-            <img class="game-community-card-img-cls" src="@ViewModel.GetCommunityCardImageUrl(i)"/>
-          </div>
-        }
+        <div class="column card-group-cls">
+          @for (var i = 0; i < ViewModel.JoinGameResponse.Game.NumberOfRounds; ++i)
+          {
+            <div class="card-content-cls mat-elevation-z5">
+              <img class="card-image-cls" src="@ViewModel.GetCommunityCardImageUrl(i)"/>
+            </div>
+          }
+        </div>
     </div>
       
     @if (ViewModel.PlayerUpdateResponse.IsDealer)
