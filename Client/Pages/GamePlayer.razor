@@ -57,12 +57,12 @@
         <div class="column card-content-cls mat-elevation-z5">
           <img class="card-image-cls" src="@ViewModel.GamePlayerCardImageUrl()"/>
         </div>
-        <div class="column card-group-cls">
+        <div class="column card-group-cls mat-elevation-z5">
           @for (var i = 0; i < ViewModel.JoinGameResponse.Game.NumberOfRounds; ++i)
           {
-            <div class="card-content-cls mat-elevation-z5">
+            @* <div class="card-content-cls mat-elevation-z5"> *@
               <img class="card-image-cls" src="@ViewModel.GetCommunityCardImageUrl(i)"/>
-            </div>
+            @* </div> *@
           }
         </div>
     </div>
