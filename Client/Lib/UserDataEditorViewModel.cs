@@ -16,8 +16,12 @@ namespace MarketMakingGame.Client.Lib
     public Player Data { get; set; } = new Player();
     private bool _isUserDataEditorOpen = false;
 
-    public String AvatarUrl =>
-      $"https://avatars.dicebear.com/api/gridy/{Data.AvatarSeed}.svg";
+    public String AvatarUrl => ToPlayerAvatarUrl(Data.AvatarSeed);
+
+    public static string ToPlayerAvatarUrl(string seed)
+    {
+      return $"https://avatars.dicebear.com/api/gridy/{seed}.svg";
+    }
 
     public bool IsUserDataEditorOpen
     {

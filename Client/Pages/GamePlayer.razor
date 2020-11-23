@@ -8,101 +8,122 @@
   .card-image-cls {
     width: 100%;
     height: 128px;
-    max-width:100%;
-    max-height:100%;
+    max-width: 100%;
+    max-height: 100%;
   }
   .card-group-cls {
     display: flex;
     flex-flow: row;
-    width:100%;
+    width: 100%;
     height: 100%;
+    border-radius: 10px
   }
   .community-card-group-cls {
-    background-color: coral;
-    border-style: dotted;
+    background-color: darkgreen;
+    width: 80%
+  }
+  .user-card-group-cls {
+    background-color: #8a6833;
+    width: 20%
   }
   .card-content-cls {
     height: 100%;
     margin: 5px;
   }
+  .card-panel-cls {
+    gap: 30px;
+  }
 </style>
 
-<div class="row">
-  <table style="width: 100%;">
-    <tr>
-      <td style="width: 10%;">
-      </td>
-      <td style="width: 80%;">
-        <div style="text-align: center; display: inline-block; width: 100%;">
-          <MatHeadline5 style="font-family: font-family: 'Times New Roman', Times, serif;"><img src="images/poker.png" width=32
-            height=32 /> The Market Maker's Poker</MatHeadline5>
-        </div>
-      </td>
-      <td style="width: 10%;">
-        <UserBadge />
-      </td>
-    </tr>
-  </table>
-</div>
+<div>
 
-@if (ViewModel.IsInitialized)
-{
-  @if (ViewModel.JoinGameResponse.IsSuccess)
+  <AppTopBar />
+
+  <p></p>
+  <MatDivider />
+  <p></p>
+
+  @if (ViewModel.IsInitialized)
   {
-    <div class="row" style="border-style: dashed;">
-      @ViewModel.JoinGameResponse.Game.GameName
-    </div>
-
-    <div class="row card-group-cls">
-        <div class="column card-content-cls mat-elevation-z5">
-          <img class="card-image-cls" src="@ViewModel.GamePlayerCardImageUrl()"/>
-        </div>
-        <div class="column card-group-cls mat-elevation-z5">
-          @for (var i = 0; i < ViewModel.JoinGameResponse.Game.NumberOfRounds; ++i)
-          {
-            @* <div class="card-content-cls mat-elevation-z5"> *@
-              <img class="card-image-cls" src="@ViewModel.GetCommunityCardImageUrl(i)"/>
-            @* </div> *@
-          }
-        </div>
-    </div>
-      
-    @if (ViewModel.PlayerUpdateResponse.IsDealer)
+    @if (ViewModel.JoinGameResponse.IsSuccess)
     {
-      <div class="row" style="border-style: dashed;">
-        <p>TODO: Dealer Actions</p>
+      <div class="mat-elevation-z1" style="border-style: solid; border-color: lightgray; border-radius: 10px; border-width: thin; padding-left: 20px; background-color: #f5f5f5;">
+          @ViewModel.JoinGameResponse.Game.GameName
+      </div>
+      <p/>
+      <p/>
+
+      <div class="card-group-cls card-panel-cls">
+          <div class="column card-group-cls user-card-group-cls mat-elevation-z5">
+            <div class="card-content-cls">
+              <img class="card-image-cls" src="@ViewModel.GamePlayerCardImageUrl()"/>
+            </div>
+          </div>
+          <div class="column card-group-cls community-card-group-cls mat-elevation-z5">
+            @for (var i = 0; i < ViewModel.JoinGameResponse.Game.NumberOfRounds; ++i)
+            {
+              <div class="card-content-cls">
+                <img class="card-image-cls" src="@ViewModel.GetCommunityCardImageUrl(i)"/>
+              </div>
+            }
+          </div>
+      </div>
+
+      @if (ViewModel.PlayerUpdateResponse.IsDealer)
+      {
+        <p/>
+        <p/>
+        <div class="mat-elevation-z1 dealer-actions-panel-cls">
+          <p>TODO: Dealer Actions</p>
+        </div>
+      }
+
+      <p/>
+      <p/>
+      <div class="mat-elevation-z1 player-actions-panel-cls">
+        <p>TODO: Player Actions</p>
+      </div>
+
+      <p/>
+      <p/>
+      <div class="mat-elevation-z1 user-list-panel-cls">
+        <MatTable Items="@ViewModel.PlayersData" ShowPaging="false">
+            <MatTableHeader>
+                <th>Player</th>
+                <th>Bid</th>
+                <th>Offer</th>
+            </MatTableHeader>
+            <MatTableRow>
+                <td>
+                  <img src="@context.PlayerImageUrl" width=16 height=16/>
+                  @context.PlayerName
+                </td>
+                <td>@context.Bid</td>
+                <td>@context.Offer</td>
+            </MatTableRow>
+        </MatTable>
       </div>
     }
-
-    <div class="row" style="border-style: dashed;">
-      @{
-        for(var i = 0; i < ViewModel.GameUpdateResponse.PlayerPublicStates.Count; ++i)
-        {
-          var player = ViewModel.GameUpdateResponse.PlayerPublicStates[i];
-          <div>
-              <p>@player.DisplayName</p>
-          </div>
-        }
-      }
-    </div>
+    else 
+    {
+      <h1>Error</h1>
+      <p>@ViewModel.JoinGameResponse.ErrorMessage</p>
+    }
   }
-  else 
+  else if (ViewModel.JoinGameResponse?.IsSuccess == false)
   {
     <h1>Error</h1>
     <p>@ViewModel.JoinGameResponse.ErrorMessage</p>
   }
-}
-else if (ViewModel.JoinGameResponse?.IsSuccess == false)
-{
-  <h1>Error</h1>
-  <p>@ViewModel.JoinGameResponse.ErrorMessage</p>
-}
-else
-{
-  <p>Joining Game @GameId ...</p>
-}
+  else
+  {
+    <p>Joining Game @GameId ...</p>
+  }
+
+</div>
 
 @code {
+
   [Parameter]
   public string GameId { get; set; }
 

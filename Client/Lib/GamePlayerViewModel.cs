@@ -25,6 +25,14 @@ namespace MarketMakingGame.Client.Lib
       public string Message { get; set; }
     };
 
+    public class PlayerData
+    {
+      public string PlayerName { get; set; }
+      public string Bid { get; set; }
+      public string Offer { get; set; }
+      public string PlayerImageUrl { get; set; }
+    }
+
     private UserDataEditorViewModel UserDataEditor { get; }
     private ILogger Logger { get; }
     private NavigationManager NavigationManager { get; }
@@ -115,6 +123,26 @@ namespace MarketMakingGame.Client.Lib
     {
       var cardId = PlayerUpdateResponse.CardId;
       return Cards.Where(x => x.CardId == cardId).DefaultIfEmpty(UnopenedCard).First().CardImageUrl;
+    }
+
+    public IEnumerable<PlayerData> PlayersData
+    {
+      get
+      {
+        if (GameUpdateResponse != null)
+        {
+          return GameUpdateResponse.PlayerPublicStates.Select(x => {
+            return new PlayerData() {
+              PlayerName = x.DisplayName,
+              PlayerImageUrl = UserDataEditorViewModel.ToPlayerAvatarUrl(x.AvatarSeed),
+              Bid = x.CurrentBid.HasValue  ? x.CurrentBid.Value.ToString("#,###.##") : "-",
+              Offer = x.CurrentAsk.HasValue  ? x.CurrentAsk.Value.ToString("#,###.##") : "-"
+            };
+          }
+          );
+        }
+        return Enumerable.Empty<PlayerData>();
+      }
     }
 
     public override void Dispose()
