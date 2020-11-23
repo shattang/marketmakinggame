@@ -28,9 +28,11 @@ namespace MarketMakingGame.Client.Lib
     public class PlayerData
     {
       public string PlayerName { get; set; }
-      public string Bid { get; set; }
-      public string Offer { get; set; }
+      public double Bid { get; set; }
+      public double Offer { get; set; }
       public string PlayerImageUrl { get; set; }
+      public double PositionQty { get; set; }
+      public double PositionPrice { get; set; }
     }
 
     private UserDataEditorViewModel UserDataEditor { get; }
@@ -125,24 +127,54 @@ namespace MarketMakingGame.Client.Lib
       return Cards.Where(x => x.CardId == cardId).DefaultIfEmpty(UnopenedCard).First().CardImageUrl;
     }
 
+    public double BestBid
+    {
+      get
+      {
+        return GameUpdateResponse != null && GameUpdateResponse.BestCurrentBid.HasValue ? GameUpdateResponse.BestCurrentBid.Value : double.NaN;
+      }
+    }
+
+    public double BestAsk
+    {
+      get
+      {
+        return GameUpdateResponse != null && GameUpdateResponse.BestCurrentAsk.HasValue ? GameUpdateResponse.BestCurrentAsk.Value : double.NaN;
+      }
+    }
+
     public IEnumerable<PlayerData> PlayersData
     {
       get
       {
         if (GameUpdateResponse != null)
         {
-          return GameUpdateResponse.PlayerPublicStates.Select(x => {
-            return new PlayerData() {
-              PlayerName = x.DisplayName,
+          var myPlayerId = PlayerUpdateResponse != null ? PlayerUpdateResponse.PlayerPublicId : -1;
+          return GameUpdateResponse.PlayerPublicStates.Select(x =>
+          {
+            return new PlayerData()
+            {
+              PlayerName = x.PlayerPublicId == myPlayerId ? $"{x.DisplayName} (You)" : x.DisplayName,
               PlayerImageUrl = UserDataEditorViewModel.ToPlayerAvatarUrl(x.AvatarSeed),
-              Bid = x.CurrentBid.HasValue  ? x.CurrentBid.Value.ToString("#,###.##") : "-",
-              Offer = x.CurrentAsk.HasValue  ? x.CurrentAsk.Value.ToString("#,###.##") : "-"
+              Bid = x.CurrentBid.HasValue ? x.CurrentBid.Value : double.NaN,
+              Offer = x.CurrentAsk.HasValue ? x.CurrentAsk.Value : double.NaN,
+              PositionPrice = x.PositionCashFlow.HasValue && x.PositionQty > 0 ? x.PositionCashFlow.Value / x.PositionQty.Value : double.NaN,
+              PositionQty = x.PositionQty.HasValue ? x.PositionQty.Value : double.NaN
             };
-          }
-          );
+          }).OrderBy(x => x.PlayerName);
         }
         return Enumerable.Empty<PlayerData>();
       }
+    }
+
+    public string FormatPrice(double val)
+    {
+      return Double.IsNaN(val) ? "-" : String.Format("${0:f2}", val);
+    }
+
+    public string FormatQty(double val)
+    {
+      return Double.IsNaN(val) ? "-" : String.Format("${0:f2}", val);
     }
 
     public override void Dispose()

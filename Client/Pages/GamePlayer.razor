@@ -33,6 +33,28 @@
   .card-panel-cls {
     gap: 30px;
   }
+  .player-table {
+    table-layout: fixed ;
+    width: 100% ;
+    border-radius: 10px;
+  }
+  .player-td {
+    width: 10% ;
+  }
+  .player-actions-panel-cls {
+    padding: 10px;
+    text-align: center;
+  }
+  .game-info-cls {
+    border-style: solid; 
+    border-color: lightgray; 
+    border-radius: 10px; 
+    border-width: thin; 
+    padding: 10px; 
+    background-color: #f5f5f5;
+    display:flex;
+    justify-content:space-between;
+  }
 </style>
 
 <div>
@@ -47,10 +69,12 @@
   {
     @if (ViewModel.JoinGameResponse.IsSuccess)
     {
-      <div class="mat-elevation-z1" style="border-style: solid; border-color: lightgray; border-radius: 10px; border-width: thin; padding-left: 20px; background-color: #f5f5f5;">
-          @ViewModel.JoinGameResponse.Game.GameName
+      <div class="mat-elevation-z1 game-info-cls">
+          <div >
+            @ViewModel.JoinGameResponse.Game.GameName
+          </div>
       </div>
-      <p/>
+
       <p/>
 
       <div class="card-group-cls card-panel-cls">
@@ -72,37 +96,46 @@
       @if (ViewModel.PlayerUpdateResponse.IsDealer)
       {
         <p/>
-        <p/>
         <div class="mat-elevation-z1 dealer-actions-panel-cls">
           <p>TODO: Dealer Actions</p>
         </div>
       }
 
       <p/>
-      <p/>
-      <div class="mat-elevation-z1 player-actions-panel-cls">
-        <p>TODO: Player Actions</p>
+      <div class="mat-elevation-z0 player-actions-panel-cls">
+        <MatTooltip Tooltip="Click to sell" Wrap="true">
+          <MatButton Raised="true" style="background-color: red">
+            Best Bid: @ViewModel.FormatPrice(@ViewModel.BestBid)
+          </MatButton>
+        </MatTooltip>
+        &nbsp;
+        <MatTooltip Tooltip="Click to buy" Wrap="true">
+          <MatButton Raised="true" style="background-color: limegreen">
+            Best Ask: @ViewModel.FormatPrice(@ViewModel.BestAsk)
+          </MatButton>
+        </MatTooltip>
       </div>
 
       <p/>
-      <p/>
-      <div class="mat-elevation-z1 user-list-panel-cls">
-        <MatTable Items="@ViewModel.PlayersData" ShowPaging="false">
-            <MatTableHeader>
-                <th>Player</th>
-                <th>Bid</th>
-                <th>Offer</th>
-            </MatTableHeader>
-            <MatTableRow>
-                <td>
-                  <img src="@context.PlayerImageUrl" width=16 height=16/>
-                  @context.PlayerName
-                </td>
-                <td>@context.Bid</td>
-                <td>@context.Offer</td>
-            </MatTableRow>
-        </MatTable>
-      </div>
+      <MatTable Items="@ViewModel.PlayersData" ShowPaging="false" class="mat-elevation-z1 player-table">
+          <MatTableHeader>
+              <th>Player</th>
+              <th>Bid</th>
+              <th>Offer</th>
+              <th>Pos Qty</th>
+              <th>Pos Price</th>
+          </MatTableHeader>
+          <MatTableRow>
+              <td class="player-td">
+                <img src="@context.PlayerImageUrl" width=16 height=16/>
+                @context.PlayerName
+              </td>
+              <td class="player-td">@ViewModel.FormatPrice(@context.Bid)</td>
+              <td class="player-td">@ViewModel.FormatPrice(@context.Offer)</td>
+              <td class="player-td">@ViewModel.FormatQty(@context.PositionQty)</td>
+              <td class="player-td">@ViewModel.FormatPrice(@context.PositionPrice)</td>
+          </MatTableRow>
+      </MatTable>
     }
     else 
     {
