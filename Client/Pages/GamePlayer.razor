@@ -23,12 +23,13 @@
     width: 80%
   }
   .user-card-group-cls {
-    background-color: #8a6833;
+    background-color: darkorange;
     width: 20%
   }
   .card-content-cls {
     height: 100%;
     margin: 5px;
+    text-align: center;
   }
   .card-panel-cls {
     gap: 30px;
@@ -40,20 +41,36 @@
   }
   .player-td {
     width: 10% ;
+    font-size: 75%;
+  }
+  .dealer-actions-panel-cls {
+    padding: 5px;
+    border-style: dotted; 
+    border-width: thin;
+    border-color: lightgray; 
+    border-radius: 10px;
+    overflow: scroll;
   }
   .player-actions-panel-cls {
+    display: flex;
+    flex-flow: row;
     padding: 10px;
-    text-align: center;
+    border-style: dotted; 
+    border-width: thin;
+    border-color: lightgray; 
+    border-radius: 10px;
+    overflow: scroll;
   }
   .game-info-cls {
     border-style: solid; 
     border-color: lightgray; 
     border-radius: 10px; 
     border-width: thin; 
-    padding: 10px; 
+    padding: 3px; 
     background-color: #f5f5f5;
-    display:flex;
-    justify-content:space-between;
+    text-align: center;
+    display: flex;
+    justify-content: space-between;
   }
 </style>
 
@@ -73,6 +90,15 @@
           <div >
             @ViewModel.JoinGameResponse.Game.GameName
           </div>
+          <div>
+          </div>
+          <div>
+            <MatTooltip Tooltip="Sum of the value of all cards, including your private card." Wrap="true">
+              <div style="font-size: 75%; font-color: darkgray">
+                Current Price: @ViewModel.FormatPrice(@ViewModel.IndicativePrice)
+              </div>
+            </MatTooltip>
+          </div>
       </div>
 
       <p/>
@@ -80,9 +106,12 @@
       <div class="card-group-cls card-panel-cls">
           <div class="column card-group-cls user-card-group-cls mat-elevation-z5">
             <div class="card-content-cls">
-              <img class="card-image-cls" src="@ViewModel.GamePlayerCardImageUrl()"/>
+              <MatTooltip Tooltip="Your private card" Wrap="true">
+                <img class="card-image-cls" src="@ViewModel.GamePlayerCardImageUrl()"/>
+              </MatTooltip>
             </div>
           </div>
+          
           <div class="column card-group-cls community-card-group-cls mat-elevation-z5">
             @for (var i = 0; i < ViewModel.JoinGameResponse.Game.NumberOfRounds; ++i)
             {
@@ -96,34 +125,64 @@
       @if (ViewModel.PlayerUpdateResponse.IsDealer)
       {
         <p/>
-        <div class="mat-elevation-z1 dealer-actions-panel-cls">
-          <p>TODO: Dealer Actions</p>
+        <div class="mat-elevation-z0 dealer-actions-panel-cls" >
+          <div>
+          <MatTooltip Tooltip="Click to deal next card" Wrap="true">
+            <MatButton Outlined="true">
+              Deal Card!
+            </MatButton>
+          </MatTooltip>
+          &nbsp;
+          <MatSlideToggle TValue="bool" Label="Allow Trading"></MatSlideToggle>
+          </div>
         </div>
       }
 
       <p/>
       <div class="mat-elevation-z0 player-actions-panel-cls">
-        <MatTooltip Tooltip="Click to sell" Wrap="true">
-          <MatButton Raised="true" style="background-color: red">
-            Best Bid: @ViewModel.FormatPrice(@ViewModel.BestBid)
-          </MatButton>
-        </MatTooltip>
+        <div class="player-actions-panel-cls">
+          <MatNumericUpDownField Label="Your Bid"
+                                   @bind-Value=@ViewModel.BidPrice
+                                   FieldType="MatNumericUpDownFieldType.Currency"
+                                   DecimalPlaces=2>
+          </MatNumericUpDownField>
+          &nbsp;
+          <MatNumericUpDownField Label="Your Ask"
+                                   @bind-Value=@ViewModel.AskPrice
+                                   FieldType="MatNumericUpDownFieldType.Currency"
+                                   DecimalPlaces=2>
+          </MatNumericUpDownField>
+          &nbsp;
+          <MatTooltip Tooltip="Click to update quote" Wrap="true">
+            <MatButton Outlined="true">
+              Update!
+            </MatButton>
+          </MatTooltip>
+        </div>
         &nbsp;
-        <MatTooltip Tooltip="Click to buy" Wrap="true">
-          <MatButton Raised="true" style="background-color: limegreen">
-            Best Ask: @ViewModel.FormatPrice(@ViewModel.BestAsk)
-          </MatButton>
-        </MatTooltip>
+        <div class="player-actions-panel-cls">
+          <MatTooltip Tooltip="Click to sell" Wrap="true">
+            <MatButton Raised="true" style="background-color: red;">
+              Best Bid: @ViewModel.FormatPrice(@ViewModel.BestBid)
+            </MatButton>
+          </MatTooltip>
+          &nbsp;
+          <MatTooltip Tooltip="Click to buy" Wrap="true">
+            <MatButton Raised="true" style="background-color: limegreen;">
+              Best Ask: @ViewModel.FormatPrice(@ViewModel.BestAsk)
+            </MatButton>
+          </MatTooltip>
+        </div>
       </div>
 
       <p/>
       <MatTable Items="@ViewModel.PlayersData" ShowPaging="false" class="mat-elevation-z1 player-table">
           <MatTableHeader>
-              <th>Player</th>
-              <th>Bid</th>
-              <th>Offer</th>
-              <th>Pos Qty</th>
-              <th>Pos Price</th>
+              <th style="font-size: 75%;">Player</th>
+              <th style="font-size: 75%;">Bid</th>
+              <th style="font-size: 75%;">Offer</th>
+              <th style="font-size: 75%;">Pos Qty</th>
+              <th style="font-size: 75%;">Pos Price</th>
           </MatTableHeader>
           <MatTableRow>
               <td class="player-td">

@@ -143,6 +143,27 @@ namespace MarketMakingGame.Client.Lib
       }
     }
 
+    public double GetCardValue(int cardId)
+    {
+      return Cards.Where(x => x.CardId == cardId).DefaultIfEmpty(UnopenedCard).Select(x => x.CardValue).First();
+    }
+
+    public double IndicativePrice
+    {
+      get
+      {
+        if (GameUpdateResponse != null && GameUpdateResponse.CommunityCardIds != null)
+        {
+          var sum = GameUpdateResponse.CommunityCardIds
+            .Select(GetCardValue)
+            .Sum();
+          sum += GetCardValue(PlayerUpdateResponse?.CardId ?? UnopenedCard.CardId);
+          return sum;
+        }
+        return double.NaN;
+      }
+    }
+
     public IEnumerable<PlayerData> PlayersData
     {
       get
@@ -175,6 +196,18 @@ namespace MarketMakingGame.Client.Lib
     public string FormatQty(double val)
     {
       return Double.IsNaN(val) ? "-" : String.Format("${0:f2}", val);
+    }
+
+    public double BidPrice
+    {
+      get;
+      set;
+    }
+
+    public double AskPrice
+    {
+      get;
+      set;
     }
 
     public override void Dispose()
