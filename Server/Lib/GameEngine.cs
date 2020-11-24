@@ -134,9 +134,14 @@ namespace MarketMakingGame.Server.Lib
       }
     }
 
-    public async Task<List<PlayerState>> DealPlayerCards()
+    public async Task<(bool, string, IEnumerable<PlayerState>)> DealPlayerCards()
     {
       EnsureCardDeckInitialized();
+
+      if (GameState.RoundStates.Count >= GameState.Game.NumberOfRounds)
+      {
+        return (false, "Cannot deal, All rounds are done", Enumerable.Empty<PlayerState>());
+      }
 
       var playersToDeal = GameState.PlayerStates
         .Where(x => x.PlayerCardCardId == _service.UnopenedCard.CardId).ToList();
@@ -151,27 +156,18 @@ namespace MarketMakingGame.Server.Lib
 
         await _service.DBContext.SaveChangesAsync();
       }
-
-      return playersToDeal;
-    }
-
-    public async Task<(bool, string)> DealNextCommunityCard()
-    {
-      EnsureCardDeckInitialized();
-
-      if (GameState.RoundStates.Count >= GameState.Game.NumberOfRounds)
+      else
       {
-        return (false, "Cannot deal, All rounds are done");
+        var roundState = new RoundState()
+        {
+          CommunityCardCardId = _cardDeck.Draw()
+        };
+
+        GameState.RoundStates.Add(roundState);
+        await _service.DBContext.SaveChangesAsync();
       }
 
-      var roundState = new RoundState()
-      {
-        CommunityCardCardId = _cardDeck.Draw()
-      };
-
-      GameState.RoundStates.Add(roundState);
-      await _service.DBContext.SaveChangesAsync();
-      return (true, null);
+      return (true, string.Empty, playersToDeal);
     }
 
     public async Task<(bool, string)> UpdateQuote(UpdateQuoteRequest request)
@@ -288,6 +284,7 @@ namespace MarketMakingGame.Server.Lib
         }
 
         targetPlayers = GameState.PlayerStates
+          .Where(x => x.IsConnected)
           .Where(x => x.PlayerStateId != initiatorPlayer.PlayerStateId &&
             x.CurrentBid.HasValue &&
             Math.Abs(x.CurrentBid.Value - GameState.BestCurrentBid.Value) < 1E-6)
@@ -303,7 +300,7 @@ namespace MarketMakingGame.Server.Lib
       var initiatorTradeQty = GameState.Game.TradeQty.Value;
       var tradePrice = request.IsBuy ? GameState.BestCurrentAsk.Value : GameState.BestCurrentBid.Value;
       var targetTradeQty = initiatorTradeQty / targetPlayers.Count;
-      foreach(var targetPlayer in targetPlayers)
+      foreach (var targetPlayer in targetPlayers)
       {
         var trade = new Trade()
         {
@@ -346,8 +343,8 @@ namespace MarketMakingGame.Server.Lib
         .Sum();
 
       GameState.SettlementPrice = settlementPrice;
-      
-      foreach(var playerState in GameState.PlayerStates)
+
+      foreach (var playerState in GameState.PlayerStates)
       {
         if (playerState.PositionQty.HasValue && Math.Abs(playerState.PositionQty.Value) > 1E-6)
         {

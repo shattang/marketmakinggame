@@ -33,6 +33,7 @@ namespace MarketMakingGame.Client.Lib
       public string PlayerImageUrl { get; set; }
       public double PositionQty { get; set; }
       public double PositionPrice { get; set; }
+      public bool IsConnected { get; set; }
     }
 
     private UserDataEditorViewModel UserDataEditor { get; }
@@ -180,7 +181,8 @@ namespace MarketMakingGame.Client.Lib
               Bid = x.CurrentBid.HasValue ? x.CurrentBid.Value : double.NaN,
               Offer = x.CurrentAsk.HasValue ? x.CurrentAsk.Value : double.NaN,
               PositionPrice = x.PositionCashFlow.HasValue && x.PositionQty > 0 ? x.PositionCashFlow.Value / x.PositionQty.Value : double.NaN,
-              PositionQty = x.PositionQty.HasValue ? x.PositionQty.Value : double.NaN
+              PositionQty = x.PositionQty.HasValue ? x.PositionQty.Value : double.NaN,
+              IsConnected = x.IsConnected
             };
           }).OrderBy(x => x.PlayerName);
         }

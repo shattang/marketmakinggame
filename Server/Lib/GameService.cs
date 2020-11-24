@@ -67,7 +67,7 @@ namespace MarketMakingGame.Server.Lib
       else
       {
         Models.GameState gameState;
-        var gameEngine= GameEngines.GetValueOrDefault(gameId);
+        var gameEngine = GameEngines.GetValueOrDefault(gameId);
         if (gameEngine != null)
         {
           gameState = gameEngine.GameState;
@@ -77,13 +77,17 @@ namespace MarketMakingGame.Server.Lib
           gameState = await DBContext.GameStates
             .FirstOrDefaultAsync(x => x.GameId == gameId);
         }
-        
+
         if (gameState != null)
         {
           var playerState = gameState.PlayerStates
             .FirstOrDefault(x => x.PlayerId == playerId);
           if (playerState != null)
           {
+            playerState.CurrentAsk = null;
+            playerState.CurrentBid = null;
+            gameState.BestCurrentAsk = gameState.PlayerStates.Select(x => x.CurrentAsk).Min();
+            gameState.BestCurrentBid = gameState.PlayerStates.Select(x => x.CurrentBid).Max();
             playerState.IsConnected = false;
             await DBContext.SaveChangesAsync();
             InvokeOnGameUpdate(MakeGameUpdateResponse(gameState));
@@ -233,25 +237,19 @@ namespace MarketMakingGame.Server.Lib
         return;
       }
 
-      if (request.RequestType == DealGameRequest.RequestTypes.DealPlayerCards)
+      if (request.RequestType == DealGameRequest.RequestTypes.DealCard)
       {
-        var updatedPlayers = await gameEngine.DealPlayerCards();
-        resp.IsSuccess = true;
-        await responseHandler(resp);
-
-        foreach (var playerState in updatedPlayers)
-        {
-          InvokeOnPlayerUpdate(MakePlayerUpdateResponse(playerState));
-        }
-        InvokeOnGameUpdate(MakeGameUpdateResponse(gameEngine.GameState));
-      }
-      else if (request.RequestType == DealGameRequest.RequestTypes.DealNextCommunityCard)
-      {
-        (resp.IsSuccess, resp.ErrorMessage) = await gameEngine.DealNextCommunityCard();
+        var (success, err, updatedPlayerStates) = await gameEngine.DealPlayerCards();
+        resp.IsSuccess = success;
+        resp.ErrorMessage = err;
         await responseHandler(resp);
 
         if (resp.IsSuccess)
         {
+          foreach (var playerState in updatedPlayerStates)
+          {
+            InvokeOnPlayerUpdate(MakePlayerUpdateResponse(playerState));
+          }
           InvokeOnGameUpdate(MakeGameUpdateResponse(gameEngine.GameState));
         }
       }
@@ -359,6 +357,7 @@ namespace MarketMakingGame.Server.Lib
       ret.IsTradingLocked = gameState.IsTradingLocked;
       ret.IsSuccess = true;
       ret.SettlementPrice = gameState.SettlementPrice;
+      ret.AllRoundsFinished = gameState.RoundStates.Count >= gameState.Game.NumberOfRounds;
       return ret;
     }
 

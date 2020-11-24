@@ -16,8 +16,7 @@
 </div>
 <button @onclick="SendCreateGameRequest" disabled="@(!IsConnected)">Create Game</button>
 <button @onclick="SendJoinGameRequest" disabled="@(!IsConnected)">Join Game</button>
-<button @onclick="SendDealPlayerCardsRequest" disabled="@(!IsConnected)">Deal Player Cards</button>
-<button @onclick="SendDealCommunityCardRequest" disabled="@(!IsConnected)">Deal Community Card</button>
+<button @onclick="SendDealCardRequest" disabled="@(!IsConnected)">Deal Card</button>
 <button @onclick="SendFinishGameRequest" disabled="@(!IsConnected)">Finish Game</button>
 <button @onclick="SendDeleteGameRequest" disabled="@(!IsConnected)">Delete Game</button>
 
@@ -101,14 +100,9 @@
     return GameClient.SendRequestAsync("JoinGame", message);
   }
 
-  Task SendDealPlayerCardsRequest()
+  Task SendDealCardRequest()
   {
-    return SendDealGameRequest(DealGameRequest.RequestTypes.DealPlayerCards);
-  }
-
-  Task SendDealCommunityCardRequest()
-  {
-    return SendDealGameRequest(DealGameRequest.RequestTypes.DealNextCommunityCard);
+    return SendDealGameRequest(DealGameRequest.RequestTypes.DealCard);
   }
 
   Task SendFinishGameRequest()

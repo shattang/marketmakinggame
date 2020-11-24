@@ -24,6 +24,8 @@ namespace MarketMakingGame.Shared.Messages
 
     public double? SettlementPrice { get; set; }
 
+    public bool AllRoundsFinished { get; set; }
+
     public override string ToString()
     {
       return this.ToStringWithProperties();

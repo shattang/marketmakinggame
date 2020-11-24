@@ -127,11 +127,23 @@
         <p/>
         <div class="mat-elevation-z0 dealer-actions-panel-cls" >
           <div>
-          <MatTooltip Tooltip="Click to deal next card" Wrap="true">
-            <MatButton Outlined="true">
-              Deal Card!
-            </MatButton>
-          </MatTooltip>
+            @if (ViewModel.GameUpdateResponse.AllRoundsFinished)
+            {
+              <MatTooltip Tooltip="Click to mark game finished and display results" Wrap="true">
+              <MatButton Outlined="true">
+                Finish
+              </MatButton>
+              </MatTooltip>
+            }
+            else
+            {
+              <MatTooltip Tooltip="Click to deal next card" Wrap="true">
+              <MatButton Outlined="true">
+                <p>Deal</p>
+              </MatButton>
+              </MatTooltip>
+            }
+          &nbsp;
           &nbsp;
           <MatSlideToggle TValue="bool" Label="Allow Trading"></MatSlideToggle>
           </div>
@@ -178,13 +190,28 @@
       <p/>
       <MatTable Items="@ViewModel.PlayersData" ShowPaging="false" class="mat-elevation-z1 player-table">
           <MatTableHeader>
+              <th>&nbsp;</th>
               <th style="font-size: 75%;">Player</th>
-              <th style="font-size: 75%;">Bid</th>
-              <th style="font-size: 75%;">Offer</th>
-              <th style="font-size: 75%;">Pos Qty</th>
-              <th style="font-size: 75%;">Pos Price</th>
+              <th style="font-size: 75%;">Bid Price</th>
+              <th style="font-size: 75%;">Ask Price</th>
+              <th style="font-size: 75%;">Position Qty</th>
+              <th style="font-size: 75%;">Position Cost</th>
           </MatTableHeader>
           <MatTableRow>
+              <td style="width: 20px">
+                @if (context.IsConnected)
+                {
+                  <MatTooltip Tooltip="Player is connected" Wrap="true" Context="tmpContext">
+                  <img src="images/green.svg" width=16 height=16/>
+                  </MatTooltip>
+                }
+                else
+                {
+                  <MatTooltip Tooltip="Player is not connected" Wrap="true" Context="tmpContext">
+                  <img src="images/red.svg" width=16 height=16/>
+                  </MatTooltip>
+                }
+              </td>
               <td class="player-td">
                 <img src="@context.PlayerImageUrl" width=16 height=16/>
                 @context.PlayerName

@@ -8,8 +8,7 @@ namespace MarketMakingGame.Shared.Messages
   {
     public enum RequestTypes
     {
-      DealPlayerCards,
-      DealNextCommunityCard,
+      DealCard,
       LockTrading, 
       UnlockTrading,
       FinishGame,
