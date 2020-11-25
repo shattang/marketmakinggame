@@ -28,6 +28,9 @@ namespace MarketMakingGame.Server.Migrations
                     b.Property<double?>("BestCurrentBid")
                         .HasColumnType("REAL");
 
+                    b.Property<string>("CardDeckHash")
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("GameId")
                         .IsRequired()
                         .HasColumnType("char")

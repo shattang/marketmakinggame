@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using MarketMakingGame.Server.Hubs;
 using MarketMakingGame.Shared.Messages;
@@ -8,9 +9,9 @@ using Microsoft.AspNetCore.SignalR;
 
 namespace MarketMakingGame.Server.Lib
 {
-  public class GameHubEventManager: IDisposable
+  public class GameHubEventManager
   {
-    private class GameMembership
+    public class GameMembership
     {
       public string PlayerId { get; set; }
       public string GameId { get; set; }
@@ -18,18 +19,14 @@ namespace MarketMakingGame.Server.Lib
 
     private ConcurrentDictionary<string, List<GameMembership>> _connectionToMembership;
     private IHubContext<GameHub> _hubContext;
-    private GameService _gameService;
 
-    public GameHubEventManager(GameService gameService, IHubContext<GameHub> hubContext)
+    public GameHubEventManager(IHubContext<GameHub> hubContext)
     {
-      _gameService = gameService;
       _connectionToMembership = new ConcurrentDictionary<string, List<GameMembership>>();
       _hubContext = hubContext;
-      gameService.OnGameUpdate += HandleGameUpdate;
-      gameService.OnPlayerUpdate += HandlePlayerUpdate;
     }
 
-    public async Task RemoveConnection(string connectionId)
+    public async Task<IEnumerable<GameMembership>> RemoveConnection(string connectionId)
     {
       if (_connectionToMembership.TryRemove(connectionId, out var memberships))
       {
@@ -37,19 +34,25 @@ namespace MarketMakingGame.Server.Lib
         {
           await _hubContext.Groups.RemoveFromGroupAsync(connectionId, m.GameId);
           await _hubContext.Groups.RemoveFromGroupAsync(connectionId, TopicName(m.GameId, m.PlayerId));
-          await _gameService.OnPlayerDisconnectedAsync(m.GameId, m.PlayerId);
         }
+        return memberships;
       }
+      return Enumerable.Empty<GameMembership>();
     }
 
-    private void HandleGameUpdate(GameUpdateResponse resp)
+    public void HandleGameUpdate(GameUpdateResponse resp)
     {
       _ = _hubContext.Clients.Group(resp.GameId).SendAsync("OnGameUpdateResponse", resp);
     }
 
-    private void HandlePlayerUpdate(PlayerUpdateResponse resp)
+    public void HandlePlayerUpdate(PlayerUpdateResponse resp)
     {
       _ = _hubContext.Clients.Group(TopicName(resp.GameId, resp.PlayerId)).SendAsync("OnPlayerUpdateResponse", resp);
+    }
+
+    public void HandleTradeUpdate(string playerId, TradeUpdateResponse resp)
+    {
+      _ = _hubContext.Clients.Group(TopicName(resp.GameId, playerId)).SendAsync("OnTradeUpdateResponse", resp);
     }
 
     public async Task AddConnection(string gameId, string playerId, string connectionId)
@@ -60,15 +63,9 @@ namespace MarketMakingGame.Server.Lib
       await _hubContext.Groups.AddToGroupAsync(connectionId, TopicName(gameId, playerId));
     }
 
-    private static string TopicName(string gameId, string playerId)
+    private static string TopicName(string gameId, string playerId = null)
     {
-      return $"{gameId}.{playerId}";
-    }
-
-    public void Dispose()
-    {
-      _gameService.OnGameUpdate -= HandleGameUpdate;
-      _gameService.OnPlayerUpdate -= HandlePlayerUpdate;
+      return playerId == null ? gameId : $"{gameId}.{playerId}";
     }
   }
 }

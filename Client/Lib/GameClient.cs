@@ -32,7 +32,15 @@ namespace MarketMakingGame.Client.Lib
       _hubConnection.On<DealGameResponse>("OnDealGameResponse", HandleDealGameResponse);
       _hubConnection.On<UpdateQuoteResponse>("OnUpdateQuoteResponse", HandleUpdateQuoteResponse);
       _hubConnection.On<TradeResponse>("OnTradeResponse", HandleTradeResponse);
+      _hubConnection.On<TradeUpdateResponse>("OnTradeUpdateResponse", HandleTradeUpdateResponse);
       _logger.LogDebug("GameClient Created");
+    }
+
+    private void HandleTradeUpdateResponse(TradeUpdateResponse obj)
+    {
+      _logger.LogInformation("HandleTradeUpdateResponse Message={0}", obj);
+      if (OnTradeUpdateResponse != null)
+        OnTradeUpdateResponse(obj);
     }
 
     private void HandleUpdateQuoteResponse(UpdateQuoteResponse obj)
@@ -155,6 +163,7 @@ namespace MarketMakingGame.Client.Lib
     public event Action<JoinGameResponse> OnJoinGameResponse;
     public event Action<GameUpdateResponse> OnGameUpdateResponse;
     public event Action<PlayerUpdateResponse> OnPlayerUpdateResponse;
+    public event Action<TradeUpdateResponse> OnTradeUpdateResponse;
     public event Action<DealGameResponse> OnDealGameResponse;
     public event Action<UpdateQuoteResponse> OnUpdateQuoteResponse;
     public event Action<TradeResponse> OnTradeResponse;

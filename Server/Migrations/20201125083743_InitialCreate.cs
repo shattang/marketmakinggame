@@ -62,7 +62,8 @@ namespace MarketMakingGame.Server.Migrations
                     BestCurrentAsk = table.Column<double>(nullable: true),
                     BestCurrentBid = table.Column<double>(nullable: true),
                     IsTradingLocked = table.Column<bool>(nullable: false),
-                    SettlementPrice = table.Column<double>(nullable: true)
+                    SettlementPrice = table.Column<double>(nullable: true),
+                    CardDeckHash = table.Column<string>(nullable: true)
                 },
                 constraints: table =>
                 {

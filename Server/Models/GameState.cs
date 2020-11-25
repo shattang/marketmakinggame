@@ -25,11 +25,11 @@ namespace MarketMakingGame.Server.Models
     public string PlayerId { get; set; }
     public virtual Player Player { get; set; }
 
-    public virtual List<PlayerState> PlayerStates { get; set; }
+    public virtual List<PlayerState> PlayerStates { get; set; } = new List<PlayerState>();
 
-    public virtual List<RoundState> RoundStates { get; set; }
+    public virtual List<RoundState> RoundStates { get; set; } = new List<RoundState>();
 
-    public virtual List<Trade> Trades { get; set; }
+    public virtual List<Trade> Trades { get; set; } = new List<Trade>();
 
     public double? BestCurrentAsk { get; set; }
 
@@ -38,6 +38,8 @@ namespace MarketMakingGame.Server.Models
     public bool IsTradingLocked { get; set; }
 
     public double? SettlementPrice { get; set; }
+
+    public string CardDeckHash { get; set; }
 
     public override string ToString()
     {

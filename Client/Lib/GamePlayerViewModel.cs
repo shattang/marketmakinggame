@@ -18,6 +18,7 @@ namespace MarketMakingGame.Client.Lib
 
     public class GameAlertEventArgs : EventArgs
     {
+      public bool IsModal { get; set; }
       public bool IsError { get; set; }
 
       public string Title { get; set; }
@@ -36,6 +37,14 @@ namespace MarketMakingGame.Client.Lib
       public bool IsConnected { get; set; }
     }
 
+    public class TradeData
+    {
+      public string InitiatingPlayerName { get; set; }
+      public string TargetPlayerName { get; set; }
+      public double TradeQty { get; set; }
+      public double TradePrice { get; set; }
+    }
+
     private UserDataEditorViewModel UserDataEditor { get; }
     private ILogger Logger { get; }
     private NavigationManager NavigationManager { get; }
@@ -44,6 +53,7 @@ namespace MarketMakingGame.Client.Lib
     public JoinGameResponse JoinGameResponse { get; set; }
     public PlayerUpdateResponse PlayerUpdateResponse { get; set; }
     public GameUpdateResponse GameUpdateResponse { get; set; }
+    private Dictionary<int, TradeUpdate> Trades { get; } = new Dictionary<int, TradeUpdate>();
     public List<Card> Cards { get; set; }
     public Card UnopenedCard { get; set; }
 
@@ -57,6 +67,93 @@ namespace MarketMakingGame.Client.Lib
       GameClient.OnJoinGameResponse += HandleJoinGameResponse;
       GameClient.OnPlayerUpdateResponse += HandlePlayerUpdateResponse;
       GameClient.OnGameUpdateResponse += HandleGameUpdateResponse;
+      GameClient.OnIsConnectedChanged += HandleIsConnectedChanged;
+      GameClient.OnTradeUpdateResponse += HandleTradeUpdateResponse;
+      GameClient.OnUpdateQuoteResponse += HandleUpdateQuoteResponse;
+      GameClient.OnDealGameResponse += HandleDealGameResponse;
+      GameClient.OnTradeResponse += HandleTradeResponse;
+    }
+
+    private void HandleTradeResponse(TradeResponse obj)
+    {
+      if (!obj.IsSuccess)
+      {
+        InvokeStateChanged(new GameAlertEventArgs()
+        {
+          IsModal = true,
+          IsError = true,
+          Title = "Failed to Initate Trade",
+          Message = $"Error: {obj.ErrorMessage}"
+        });
+      }
+    }
+
+    private void HandleDealGameResponse(DealGameResponse obj)
+    {
+      if (!obj.IsSuccess)
+      {
+        InvokeStateChanged(new GameAlertEventArgs()
+        {
+          IsModal = true,
+          IsError = true,
+          Title = "Failed to Deal",
+          Message = $"Error: {obj.ErrorMessage}"
+        });
+      }
+    }
+
+    private void HandleUpdateQuoteResponse(UpdateQuoteResponse obj)
+    {
+      if (!obj.IsSuccess)
+      {
+        InvokeStateChanged(new GameAlertEventArgs()
+        {
+          IsModal = true,
+          IsError = true,
+          Title = "Failed to Update Quote",
+          Message = $"Error: {obj.ErrorMessage}"
+        });
+      }
+    }
+
+    private void HandleTradeUpdateResponse(TradeUpdateResponse obj)
+    {
+      foreach (var t in obj.TradeUpdates)
+      {
+        Trades[t.TradeId] = t;
+      }
+      InvokeStateChanged(new GameAlertEventArgs()
+      {
+        Title = "New trades were processed"
+      });
+    }
+
+    private void HandleIsConnectedChanged(bool isConnected)
+    {
+      if (isConnected)
+      {
+        if (IsInitialized)
+        {
+          _ = SendJoinRequest();
+          InvokeStateChanged(new GameAlertEventArgs()
+          {
+            Title = "Reconnected",
+            Message = "Rejoining game ..."
+          });
+        }
+      }
+      else
+      {
+        if (IsInitialized)
+        {
+          InvokeStateChanged(new GameAlertEventArgs()
+          {
+            IsError = true,
+            Title = "Disconnected from Server",
+            Message = "Attempting to reconnect ..."
+          });
+        }
+      }
     }
 
     private void HandleGameUpdateResponse(GameUpdateResponse obj)
@@ -77,6 +174,15 @@ namespace MarketMakingGame.Client.Lib
 
     private void HandleJoinGameResponse(JoinGameResponse obj)
     {
+      if (JoinGameResponse != null)
+      {
+        InvokeStateChanged(new GameAlertEventArgs()
+        {
+          Title = "Rejoined Game",
+          Message = string.Empty
+        });
+      }
+
       this.JoinGameResponse = obj;
       SetInitializedIfReady();
       InvokeStateChanged(EventArgs.Empty);
@@ -84,7 +190,7 @@ namespace MarketMakingGame.Client.Lib
 
     private void SetInitializedIfReady()
     {
-      if (JoinGameResponse == null || PlayerUpdateResponse == null || GameUpdateResponse == null)
+      if (IsInitialized || JoinGameResponse == null || PlayerUpdateResponse == null || GameUpdateResponse == null)
       {
         return;
       }
@@ -106,6 +212,11 @@ namespace MarketMakingGame.Client.Lib
         throw new Exception(getCardsResp.ErrorMessage);
       }
 
+      await SendJoinRequest();
+    }
+
+    private async Task SendJoinRequest()
+    {
       var joinReq = new JoinGameRequest();
       joinReq.GameId = GameId;
       joinReq.Player = UserDataEditor.Data;
@@ -132,7 +243,8 @@ namespace MarketMakingGame.Client.Lib
     {
       get
       {
-        return GameUpdateResponse != null && GameUpdateResponse.BestCurrentBid.HasValue ? GameUpdateResponse.BestCurrentBid.Value : double.NaN;
+        return GameUpdateResponse != null &&
+          GameUpdateResponse.BestCurrentBid.HasValue ? GameUpdateResponse.BestCurrentBid.Value : double.NaN;
       }
     }
 
@@ -140,7 +252,8 @@ namespace MarketMakingGame.Client.Lib
     {
       get
       {
-        return GameUpdateResponse != null && GameUpdateResponse.BestCurrentAsk.HasValue ? GameUpdateResponse.BestCurrentAsk.Value : double.NaN;
+        return GameUpdateResponse != null &&
+          GameUpdateResponse.BestCurrentAsk.HasValue ? GameUpdateResponse.BestCurrentAsk.Value : double.NaN;
       }
     }
 
@@ -190,6 +303,35 @@ namespace MarketMakingGame.Client.Lib
       }
     }
 
+    public IEnumerable<TradeData> TradesData
+    {
+      get
+      {
+        PlayerPublicState getPlayer(int playerId)
+        {
+          if (GameUpdateResponse != null)
+          {
+            return GameUpdateResponse.PlayerPublicStates
+              .FirstOrDefault(x => x.PlayerPublicId == playerId);
+          }
+          return null;
+        }
+
+        return Trades.Values.OrderBy(x => x.TradeId).Select(x =>
+        {
+          var initiator = getPlayer(x.InitiatorPlayerPublicId);
+          var target = getPlayer(x.TargetPlayerPublicId);
+          return new TradeData()
+          {
+            InitiatingPlayerName = initiator?.DisplayName ?? string.Empty,
+            TargetPlayerName = target?.DisplayName ?? string.Empty,
+            TradePrice = x.TradePrice,
+            TradeQty = x.TradeQty
+          };
+        });
+      }
+    }
+
     public string FormatPrice(double val)
     {
       return Double.IsNaN(val) ? "-" : String.Format("${0:f2}", val);
@@ -210,6 +352,86 @@ namespace MarketMakingGame.Client.Lib
     {
       get;
       set;
+    }
+
+    private bool CheckIsConnected(string action)
+    {
+      if (!GameClient.IsConnected)
+      {
+        InvokeStateChanged(new GameAlertEventArgs()
+        {
+          IsError = true,
+          Title = $"Unable to perform {action}",
+          Message = "Not connected to Server"
+        });
+        return false;
+      }
+      return true;
+    }
+
+    public void SendUpdateQuoteRequest()
+    {
+      if (!CheckIsConnected("UpdateQuote"))
+      {
+        return;
+      }
+
+      GameClient.SendRequestAsync("UpdateQuote", new UpdateQuoteRequest()
+      {
+        CurrentAsk = AskPrice,
+        CurrentBid = BidPrice,
+        GameId = GameId,
+        PlayerId = UserDataEditor.Data.PlayerId
+      });
+    }
+
+    public void SendTradeRequest(bool isBuy)
+    {
+      if (!CheckIsConnected("Trade"))
+      {
+        return;
+      }
+
+      GameClient.SendRequestAsync("Trade", new TradeRequest()
+      {
+        IsBuy = isBuy,
+        GameId = GameId,
+        PlayerId = UserDataEditor.Data.PlayerId
+      });
+    }
+
+    public void SendDealRequest()
+    {
+      var request = GameUpdateResponse.AllRoundsFinished ? 
+        DealGameRequest.RequestTypes.FinishGame : DealGameRequest.RequestTypes.DealCard;
+
+      if (!CheckIsConnected(request.ToString()))
+      {
+        return;
+      }
+
+      GameClient.SendRequestAsync("DealGame", new DealGameRequest()
+      {
+        RequestType = request,
+        GameId = GameId,
+        PlayerId = UserDataEditor.Data.PlayerId
+      });
+    }
+
+    public void SendLockTradingRequest(bool block)
+    {
+      var request = block ? DealGameRequest.RequestTypes.LockTrading : DealGameRequest.RequestTypes.UnlockTrading;
+      if (!CheckIsConnected(request.ToString()))
+      {
+        return;
+      }
+
+      GameClient.SendRequestAsync("DealGame", new DealGameRequest()
+      {
+        RequestType = request,
+        GameId = GameId,
+        PlayerId = UserDataEditor.Data.PlayerId
+      });
     }
 
     public override void Dispose()

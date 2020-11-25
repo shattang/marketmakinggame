@@ -9,7 +9,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace MarketMakingGame.Server.Migrations
 {
     [DbContext(typeof(GameDbContext))]
-    [Migration("20201120061625_InitialCreate")]
+    [Migration("20201125083743_InitialCreate")]
     partial class InitialCreate
     {
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -29,6 +29,9 @@ namespace MarketMakingGame.Server.Migrations
 
                     b.Property<double?>("BestCurrentBid")
                         .HasColumnType("REAL");
+
+                    b.Property<string>("CardDeckHash")
+                        .HasColumnType("TEXT");
 
                     b.Property<string>("GameId")
                         .IsRequired()

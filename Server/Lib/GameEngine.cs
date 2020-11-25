@@ -15,22 +15,15 @@ namespace MarketMakingGame.Server.Lib
   public class GameEngine
   {
     private ILogger _logger;
-    private GameService _service;
-    private Bag<int> _cardDeck;
-
+    GameDbContext _dbContext;
+    CardRepository _cardRepo;
     public GameState GameState { get; set; }
 
-    public GameEngine(ILoggerProvider loggerProvider, GameService service, GameState gameState = null)
+    public GameEngine(ILoggerProvider loggerProvider, GameDbContext dbContext, CardRepository repository)
     {
       _logger = loggerProvider.CreateLogger(nameof(GameEngine));
-      _service = service;
-      GameState = gameState;
-      if (GameState != null)
-      {
-        GameState.PlayerStates = GameState.PlayerStates ?? new List<PlayerState>();
-        GameState.RoundStates = GameState.RoundStates ?? new List<RoundState>();
-        GameState.Trades = GameState.Trades ?? new List<Trade>();
-      }
+      _dbContext = dbContext;
+      _cardRepo = repository;
     }
 
     public async Task<PlayerState> CreateGameAsync(CreateGameRequest request)
@@ -40,12 +33,12 @@ namespace MarketMakingGame.Server.Lib
       request.Game.NumberOfRounds = Math.Max(request.Game.NumberOfRounds ?? 0, 1);
       request.Game.TradeQty = Math.Max(request.Game.TradeQty ?? 0, 1);
       request.Game.GameId = Guid.NewGuid().ToBase62();
-      await _service.DBContext.Games.AddAsync(request.Game);
+      await _dbContext.Games.AddAsync(request.Game);
 
-      var player = await _service.DBContext.Players.FindAsync(request.Player.PlayerId);
+      var player = await _dbContext.Players.FindAsync(request.Player.PlayerId);
       if (player == null)
       {
-        await _service.DBContext.Players.AddAsync(request.Player);
+        await _dbContext.Players.AddAsync(request.Player);
       }
       else
       {
@@ -56,7 +49,7 @@ namespace MarketMakingGame.Server.Lib
       PlayerState playerState = new PlayerState()
       {
         PlayerId = request.Player.PlayerId,
-        PlayerCardCardId = _service.UnopenedCard.CardId,
+        PlayerCardCardId = _cardRepo.UnopenedCard.CardId,
         IsConnected = true
       };
 
@@ -72,8 +65,8 @@ namespace MarketMakingGame.Server.Lib
         Trades = new List<Trade>()
       };
 
-      _service.DBContext.GameStates.Add(GameState);
-      await _service.DBContext.SaveChangesAsync();
+      _dbContext.GameStates.Add(GameState);
+      await _dbContext.SaveChangesAsync();
 
       _logger.LogInformation("Added GameState: GameStateId={}", GameState.GameStateId);
       return playerState;
@@ -81,10 +74,10 @@ namespace MarketMakingGame.Server.Lib
 
     public async Task<PlayerState> JoinGameAsync(JoinGameRequest request)
     {
-      var player = await _service.DBContext.Players.FindAsync(request.Player.PlayerId);
+      var player = await _dbContext.Players.FindAsync(request.Player.PlayerId);
       if (player == null)
       {
-        await _service.DBContext.Players.AddAsync(request.Player);
+        await _dbContext.Players.AddAsync(request.Player);
       }
       else
       {
@@ -100,72 +93,64 @@ namespace MarketMakingGame.Server.Lib
         playerState = new PlayerState()
         {
           PlayerId = request.Player.PlayerId,
-          PlayerCardCardId = _service.UnopenedCard.CardId,
+          PlayerCardCardId = _cardRepo.UnopenedCard.CardId,
           IsConnected = true
         };
         GameState.PlayerStates.Add(playerState);
-
-        await _service.DBContext.SaveChangesAsync();
         _logger.LogInformation("Added PlayerState: PlayerStateId={}", playerState.PlayerStateId);
       }
       else
       {
         playerState.IsConnected = true;
-        await _service.DBContext.SaveChangesAsync();
       }
 
+      await _dbContext.SaveChangesAsync();
       return playerState;
-    }
-
-    private void EnsureCardDeckInitialized()
-    {
-      if (_cardDeck == null)
-      {
-        var minCardsNeeded = (GameState.Game.NumberOfRounds ?? 0) + GameState.PlayerStates.Count;
-        var minDecksNeeded = Math.Max(minCardsNeeded, 1) / _service.Cards.Count + 1;
-        var dealtCards = GameState.RoundStates
-          .Select(x => x.CommunityCard)
-          .Concat(GameState.PlayerStates.Select(x => x.PlayerCard))
-          .Where(x => x != null && x != _service.UnopenedCard)
-          .Select(x => x.CardId);
-        _cardDeck = new Bag<int>(_service.Cards.Select(x => x.CardId), dealtCards,
-          _service.UnopenedCard.CardId, minDecksNeeded);
-        _logger.LogInformation($"Card Deck Initialized NumOfDecks={minDecksNeeded}");
-      }
     }
 
     public async Task<(bool, string, IEnumerable<PlayerState>)> DealPlayerCards()
     {
-      EnsureCardDeckInitialized();
-
       if (GameState.RoundStates.Count >= GameState.Game.NumberOfRounds)
       {
         return (false, "Cannot deal, All rounds are done", Enumerable.Empty<PlayerState>());
       }
 
+      var cardDeck = _cardRepo.GameStateToCardDeck.GetOrAdd(GameState.GameStateId, _ => {
+        _logger.LogInformation("Created deck GameId={}, CardDeckHash={}", GameState.GameId, GameState.CardDeckHash);
+        return new CardDeck(_cardRepo);
+      });
+
+      if (cardDeck.NeedsRebuild(GameState.CardDeckHash))
+      {
+        _logger.LogInformation("Rebuild deck GameId={}, CardDeckHash={}", GameState.GameId, GameState.CardDeckHash);
+        GameState.CardDeckHash = cardDeck.RebuildDeck(GameState);
+      }
+
       var playersToDeal = GameState.PlayerStates
-        .Where(x => x.PlayerCardCardId == _service.UnopenedCard.CardId).ToList();
+        .Where(x => x.PlayerCardCardId == _cardRepo.UnopenedCard.CardId).ToList();
 
       if (playersToDeal.Count > 0)
       {
         foreach (var playerState in playersToDeal)
         {
-          var drawnCardId = _cardDeck.Draw();
-          playerState.PlayerCardCardId = drawnCardId;
+          var drawnCard = cardDeck.PickCard(GameState.CardDeckHash);
+          GameState.CardDeckHash = drawnCard.Hash;
+          playerState.PlayerCardCardId = drawnCard.CardId;
         }
-
-        await _service.DBContext.SaveChangesAsync();
       }
       else
       {
+        var drawnCard = cardDeck.PickCard(GameState.CardDeckHash);
+        GameState.CardDeckHash = drawnCard.Hash;
         var roundState = new RoundState()
         {
-          CommunityCardCardId = _cardDeck.Draw()
+          CommunityCardCardId = drawnCard.CardId
         };
-
         GameState.RoundStates.Add(roundState);
-        await _service.DBContext.SaveChangesAsync();
       }
+
+      _logger.LogInformation(cardDeck.ToString());
+      await _dbContext.SaveChangesAsync();
 
       return (true, string.Empty, playersToDeal);
     }
@@ -220,7 +205,7 @@ namespace MarketMakingGame.Server.Lib
       GameState.BestCurrentAsk = GameState.PlayerStates.Select(x => x.CurrentAsk).Min();
       GameState.BestCurrentBid = GameState.PlayerStates.Select(x => x.CurrentBid).Max();
 
-      await _service.DBContext.SaveChangesAsync();
+      await _dbContext.SaveChangesAsync();
       return (true, null);
     }
 
@@ -232,7 +217,7 @@ namespace MarketMakingGame.Server.Lib
       }
 
       GameState.IsTradingLocked = locked;
-      await _service.DBContext.SaveChangesAsync();
+      await _dbContext.SaveChangesAsync();
       return (true, null);
     }
 
@@ -325,7 +310,7 @@ namespace MarketMakingGame.Server.Lib
       var currPosCashflow = initiatorPlayer.PositionCashFlow ?? 0;
       initiatorPlayer.PositionQty = currPosQty + initiatorTradeQty * initiatorSide;
       initiatorPlayer.PositionCashFlow = currPosCashflow + initiatorTradeQty * tradePrice * initiatorSide;
-      await _service.DBContext.SaveChangesAsync();
+      await _dbContext.SaveChangesAsync();
 
       return (true, null, trades);
     }
@@ -358,7 +343,7 @@ namespace MarketMakingGame.Server.Lib
       }
 
       GameState.IsFinished = true;
-      await _service.DBContext.SaveChangesAsync();
+      await _dbContext.SaveChangesAsync();
       return (true, null);
     }
   }

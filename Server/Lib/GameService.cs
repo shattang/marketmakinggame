@@ -13,47 +13,23 @@ using Microsoft.EntityFrameworkCore;
 
 namespace MarketMakingGame.Server.Lib
 {
-  public class GameService : IDisposable
+  public class GameService
   {
     private const int MAX_GAMES_PER_USER = 2;
+    private readonly CardRepository _cardRepo;
+    public GameHubEventManager EventManager { get; }
+    private readonly GameDbContext _dbContext;
     private readonly ILoggerProvider _loggerProvider;
     private readonly ILogger _logger;
-    internal GameDbContext DBContext { get; }
 
-    private ConcurrentDictionary<string, GameEngine> GameEngines { get; }
-
-    internal Card UnopenedCard { get; set; }
-
-    internal List<Card> Cards { get; set; }
-
-    public event Action<GameUpdateResponse> OnGameUpdate;
-
-    public event Action<PlayerUpdateResponse> OnPlayerUpdate;
-
-    public GameService(ILoggerProvider loggerProvider)
+    public GameService(ILoggerProvider loggerProvider, GameDbContext dbContext, CardRepository repository,
+      GameHubEventManager eventManager)
     {
       _loggerProvider = loggerProvider;
       _logger = loggerProvider.CreateLogger(nameof(GameService));
-      DBContext = new GameDbContext();
-      GameEngines = new ConcurrentDictionary<string, GameEngine>();
-      Cards = new List<Card>();
-    }
-
-    public void Initialize()
-    {
-      _logger.LogInformation("Initializing");
-      foreach (var card in DBContext.Cards)
-      {
-        if (Math.Abs(card.CardValue) < 1E-6)
-        {
-          UnopenedCard = card;
-        }
-        else
-        {
-          Cards.Add(card);
-        }
-      }
-      _logger.LogInformation("Initialized");
+      _dbContext = dbContext;
+      _cardRepo = repository;
+      EventManager = eventManager;
     }
 
     public async Task OnPlayerDisconnectedAsync(string gameId, string playerId)
@@ -66,17 +42,8 @@ namespace MarketMakingGame.Server.Lib
       }
       else
       {
-        Models.GameState gameState;
-        var gameEngine = GameEngines.GetValueOrDefault(gameId);
-        if (gameEngine != null)
-        {
-          gameState = gameEngine.GameState;
-        }
-        else
-        {
-          gameState = await DBContext.GameStates
+        var gameState = await _dbContext.GameStates
             .FirstOrDefaultAsync(x => x.GameId == gameId);
-        }
 
         if (gameState != null)
         {
@@ -89,7 +56,7 @@ namespace MarketMakingGame.Server.Lib
             gameState.BestCurrentAsk = gameState.PlayerStates.Select(x => x.CurrentAsk).Min();
             gameState.BestCurrentBid = gameState.PlayerStates.Select(x => x.CurrentBid).Max();
             playerState.IsConnected = false;
-            await DBContext.SaveChangesAsync();
+            await _dbContext.SaveChangesAsync();
             InvokeOnGameUpdate(MakeGameUpdateResponse(gameState));
           }
         }
@@ -100,7 +67,7 @@ namespace MarketMakingGame.Server.Lib
     {
       _logger.LogInformation("GetGameInfo {}", request);
 
-      var lookup = await DBContext.GameStates
+      var lookup = await _dbContext.GameStates
         .Where(x => request.GameIds.Contains(x.GameId)).ToListAsync();
 
       return new GetGameInfoResponse()
@@ -109,6 +76,7 @@ namespace MarketMakingGame.Server.Lib
         IsSuccess = true,
         Games = lookup.Select(x => x.Game).ToList()
       };
+
     }
 
     public GetCardsResponse GetCards(GetCardsRequest request)
@@ -119,8 +87,8 @@ namespace MarketMakingGame.Server.Lib
       {
         RequestId = request.RequestId,
         IsSuccess = true,
-        Cards = Cards,
-        UnopenedCard = UnopenedCard
+        Cards = _cardRepo.Cards,
+        UnopenedCard = _cardRepo.UnopenedCard
       };
     }
 
@@ -136,7 +104,7 @@ namespace MarketMakingGame.Server.Lib
         return;
       }
 
-      var numPlayerGames = await DBContext.GameStates
+      var numPlayerGames = await _dbContext.GameStates
         .CountAsync(x => x.PlayerId == request.Player.PlayerId && !x.IsFinished);
       _logger.LogInformation($"numPlayerGames={numPlayerGames}");
       if (numPlayerGames > MAX_GAMES_PER_USER)
@@ -146,15 +114,15 @@ namespace MarketMakingGame.Server.Lib
         return;
       }
 
-      var gameEngine = new GameEngine(_loggerProvider, this);
+      var gameEngine = new GameEngine(_loggerProvider, _dbContext, _cardRepo);
       var playerState = await gameEngine.CreateGameAsync(request);
-      GameEngines[gameEngine.GameState.GameId] = gameEngine;
       resp.IsSuccess = true;
       resp.Game = gameEngine.GameState.Game;
       await responseHandler(resp);
 
       InvokeOnPlayerUpdate(MakePlayerUpdateResponse(playerState));
-      InvokeOnGameUpdate(MakeGameUpdateResponse(gameEngine.GameState, gameEngine.GameState.Trades));
+      InvokeOnGameUpdate(MakeGameUpdateResponse(gameEngine.GameState));
+      InvokeOnTradeUpdate(null, MakeTradeUpdateResponse(gameEngine.GameState.GameId, gameEngine.GameState.Trades));
     }
 
     public async Task JoinGameAsync(JoinGameRequest request, Func<JoinGameResponse, Task> responseHandler)
@@ -170,28 +138,25 @@ namespace MarketMakingGame.Server.Lib
         return;
       }
 
-      var gameEngine = GameEngines.GetValueOrDefault(request.GameId);
-      if (gameEngine == null)
+
+      var gameState = await _dbContext.GameStates
+        .FirstOrDefaultAsync(x => x.GameId == request.GameId);
+      if (gameState == null)
       {
-        var gameState = await DBContext.GameStates
-          .FirstOrDefaultAsync(x => x.GameId == request.GameId);
-        if (gameState == null)
-        {
-          resp.ErrorMessage = "GameId not found";
-          await responseHandler(resp);
-          return;
-        }
-
-        if (gameState.IsFinished)
-        {
-          resp.ErrorMessage = "Game is finished";
-          await responseHandler(resp);
-          return;
-        }
-
-        gameEngine = new GameEngine(_loggerProvider, this, gameState);
-        GameEngines[gameEngine.GameState.GameId] = gameEngine;
+        resp.ErrorMessage = "GameId not found";
+        await responseHandler(resp);
+        return;
       }
+
+      if (gameState.IsFinished)
+      {
+        resp.ErrorMessage = "Game is finished";
+        await responseHandler(resp);
+        return;
+      }
+
+      var gameEngine = new GameEngine(_loggerProvider, _dbContext, _cardRepo);
+      gameEngine.GameState = gameState;
 
       var playerState = await gameEngine.JoinGameAsync(request);
       resp.IsSuccess = true;
@@ -199,7 +164,9 @@ namespace MarketMakingGame.Server.Lib
       await responseHandler(resp);
 
       InvokeOnPlayerUpdate(MakePlayerUpdateResponse(playerState));
-      InvokeOnGameUpdate(MakeGameUpdateResponse(gameEngine.GameState, gameEngine.GameState.Trades));
+      InvokeOnGameUpdate(MakeGameUpdateResponse(gameEngine.GameState));
+      InvokeOnTradeUpdate(playerState.PlayerId,
+        MakeTradeUpdateResponse(gameEngine.GameState.GameId, gameEngine.GameState.Trades));
     }
 
     public async Task DealGameAsync(DealGameRequest request, Func<DealGameResponse, Task> responseHandler)
@@ -215,13 +182,17 @@ namespace MarketMakingGame.Server.Lib
         return;
       }
 
-      var gameEngine = GameEngines.GetValueOrDefault(request.GameId);
-      if (gameEngine == null)
+      var gameState = await _dbContext.GameStates
+        .FirstOrDefaultAsync(x => x.GameId == request.GameId);
+      if (gameState == null)
       {
         resp.ErrorMessage = "GameId not found";
         await responseHandler(resp);
         return;
       }
+
+      var gameEngine = new GameEngine(_loggerProvider, _dbContext, _cardRepo);
+      gameEngine.GameState = gameState;
 
       if (gameEngine.GameState.IsFinished)
       {
@@ -288,13 +259,17 @@ namespace MarketMakingGame.Server.Lib
 
       var resp = new UpdateQuoteResponse() { RequestId = request.RequestId };
 
-      var gameEngine = GameEngines.GetValueOrDefault(request.GameId);
-      if (gameEngine == null)
+      var gameState = await _dbContext.GameStates
+        .FirstOrDefaultAsync(x => x.GameId == request.GameId);
+      if (gameState == null)
       {
         resp.ErrorMessage = "GameId not found";
         await responseHandler(resp);
         return;
       }
+
+      var gameEngine = new GameEngine(_loggerProvider, _dbContext, _cardRepo);
+      gameEngine.GameState = gameState;
 
       if (gameEngine.GameState.IsFinished)
       {
@@ -318,13 +293,17 @@ namespace MarketMakingGame.Server.Lib
 
       var resp = new TradeResponse() { RequestId = request.RequestId };
 
-      var gameEngine = GameEngines.GetValueOrDefault(request.GameId);
-      if (gameEngine == null)
+      var gameState = await _dbContext.GameStates
+        .FirstOrDefaultAsync(x => x.GameId == request.GameId);
+      if (gameState == null)
       {
         resp.ErrorMessage = "GameId not found";
         await responseHandler(resp);
         return;
       }
+
+      var gameEngine = new GameEngine(_loggerProvider, _dbContext, _cardRepo);
+      gameEngine.GameState = gameState;
 
       if (gameEngine.GameState.IsFinished)
       {
@@ -339,11 +318,12 @@ namespace MarketMakingGame.Server.Lib
 
       if (resp.IsSuccess)
       {
-        InvokeOnGameUpdate(MakeGameUpdateResponse(gameEngine.GameState, trades));
+        InvokeOnGameUpdate(MakeGameUpdateResponse(gameEngine.GameState));
+        InvokeOnTradeUpdate(null, MakeTradeUpdateResponse(gameEngine.GameState.GameId, trades));
       }
     }
 
-    private GameUpdateResponse MakeGameUpdateResponse(Models.GameState gameState, List<Models.Trade> trades = null)
+    private GameUpdateResponse MakeGameUpdateResponse(Models.GameState gameState)
     {
       var ret = new GameUpdateResponse() { GameId = gameState.GameId };
       ret.BestCurrentAsk = gameState.BestCurrentAsk;
@@ -352,12 +332,18 @@ namespace MarketMakingGame.Server.Lib
         ret.CommunityCardIds = gameState.RoundStates.Select(x => x.CommunityCardCardId).ToList();
       if (gameState.PlayerStates != null)
         ret.PlayerPublicStates = gameState.PlayerStates.Select(x => MakePlayerPublicState(x)).ToList();
-      ret.TradeUpdates = trades == null ? null : trades.Select(x => MakeTradeUpdate(x)).ToList();
       ret.IsFinished = gameState.IsFinished;
       ret.IsTradingLocked = gameState.IsTradingLocked;
       ret.IsSuccess = true;
       ret.SettlementPrice = gameState.SettlementPrice;
       ret.AllRoundsFinished = gameState.RoundStates.Count >= gameState.Game.NumberOfRounds;
+      return ret;
+    }
+
+    private TradeUpdateResponse MakeTradeUpdateResponse(string gameId, List<Models.Trade> trades)
+    {
+      var ret = new TradeUpdateResponse() { GameId = gameId, IsSuccess = true };
+      ret.TradeUpdates = trades == null ? null : trades.Select(x => MakeTradeUpdate(x)).ToList();
       return ret;
     }
 
@@ -369,7 +355,8 @@ namespace MarketMakingGame.Server.Lib
         TargetPlayerPublicId = x.TargetPlayerStateId,
         IsBuy = x.IsBuy,
         TradePrice = x.TradePrice,
-        TradeQty = x.TradeQty
+        TradeQty = x.TradeQty,
+        TradeId = x.TradeId
       };
     }
 
@@ -387,7 +374,7 @@ namespace MarketMakingGame.Server.Lib
         SettlementPnl = x.SettlementPnl,
         SettlementCardId = x.GameState.IsFinished ? (int?)x.PlayerCardCardId : null,
         IsConnected = x.IsConnected,
-        IsPlayerCardDealt = x.PlayerCardCardId != UnopenedCard.CardId
+        IsPlayerCardDealt = x.PlayerCardCardId != _cardRepo.UnopenedCard.CardId
       };
     }
 
@@ -403,11 +390,11 @@ namespace MarketMakingGame.Server.Lib
 
     private void InvokeOnGameUpdate(GameUpdateResponse response)
     {
-      if (OnGameUpdate != null)
+      if (EventManager != null)
       {
         try
         {
-          OnGameUpdate(response);
+          EventManager.HandleGameUpdate(response);
         }
         catch (Exception ex)
         {
@@ -418,11 +405,11 @@ namespace MarketMakingGame.Server.Lib
 
     private void InvokeOnPlayerUpdate(PlayerUpdateResponse response)
     {
-      if (OnPlayerUpdate != null)
+      if (EventManager != null)
       {
         try
         {
-          OnPlayerUpdate(response);
+          EventManager.HandlePlayerUpdate(response);
         }
         catch (Exception ex)
         {
@@ -431,9 +418,24 @@ namespace MarketMakingGame.Server.Lib
       }
     }
 
+    private void InvokeOnTradeUpdate(string playerId, TradeUpdateResponse response)
+    {
+      if (EventManager != null)
+      {
+        try
+        {
+          EventManager.HandleTradeUpdate(playerId, response);
+        }
+        catch (Exception ex)
+        {
+          _logger.LogError(ex, nameof(InvokeOnTradeUpdate));
+        }
+      }
+    }
+
     private async Task<(bool IsSuccess, string ErrorMessage)> DeleteGameIfFinished(string gameId, string requestingPlayerId)
     {
-      var gameState = await DBContext.GameStates
+      var gameState = await _dbContext.GameStates
           .FirstOrDefaultAsync(x => x.GameId == gameId);
       if (gameState == null)
       {
@@ -450,15 +452,10 @@ namespace MarketMakingGame.Server.Lib
         return (false, "Game is in progress");
       }
 
-      GameEngines.Remove(gameId, out var _);
-      DBContext.Remove(gameState);
-      await DBContext.SaveChangesAsync();
-      return (true, string.Empty);
-    }
+      _dbContext.Remove(gameState);
+      await _dbContext.SaveChangesAsync();
 
-    public void Dispose()
-    {
-      DBContext.Dispose();
+      return (true, string.Empty);
     }
   }
 }

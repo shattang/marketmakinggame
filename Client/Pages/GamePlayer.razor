@@ -1,8 +1,10 @@
 @page "/playgame/{gameid}"
 @implements IDisposable
 @using MarketMakingGame.Client.Lib
+@using MatBlazor
 @inject GamePlayerViewModel GamePlayerViewModel
 @inject UserDataEditorViewModel UserDataEditorViewModel
+@inject IMatToaster Toaster
 
 <style>
   .card-image-cls {
@@ -34,15 +36,6 @@
   .card-panel-cls {
     gap: 30px;
   }
-  .player-table {
-    table-layout: fixed ;
-    width: 100% ;
-    border-radius: 10px;
-  }
-  .player-td {
-    width: 10% ;
-    font-size: 75%;
-  }
   .dealer-actions-panel-cls {
     padding: 5px;
     border-style: dotted; 
@@ -72,7 +65,67 @@
     display: flex;
     justify-content: space-between;
   }
+  .player-tables-panel-cls: {
+    display: flex;
+    flex-flow: row;
+    width: 100%;
+    height: 100%;
+  }
+  .quotes-table-panel-cls: {
+    width: 50%
+  }
+  .trades-table-panel-cls: {
+    width: 50%
+  }
+  .quotes-table-cls {
+    table-layout: fixed ;
+    width: 100% ;
+    border-radius: 10px;
+  }
+  .quotes-table-td-cls {
+    width: 10% ;
+    font-size: 75%;
+  }
+  .trades-table-cls {
+    table-layout: fixed ;
+    width: 100% ;
+    border-radius: 10px;
+  }
+  .trades-table-td-cls {
+    width: 10% ;
+    font-size: 75%;
+  }
 </style>
+
+<MatDialog @bind-IsOpen="@IsAlertDialogVisible">
+  <MatDialogTitle>
+    <MatIcon Icon="@AlertDialogIcon"></MatIcon>&nbsp;@AlertDialogTitle
+  </MatDialogTitle>
+  <MatDialogContent>
+    <p>@AlertDialogMessage</p>
+  </MatDialogContent>
+  <MatDialogActions>
+    <MatButton OnClick="@(e => { IsAlertDialogVisible = false; })">Close</MatButton>
+  </MatDialogActions>
+</MatDialog>
+
+@code {
+  bool IsAlertDialogVisible { get; set; }
+
+  string AlertDialogIcon { get; set; } = string.Empty;
+
+  string AlertDialogMessage { get; set; } = string.Empty;
+
+  string AlertDialogTitle { get; set; } = string.Empty;
+
+  void ShowAlertDialog(string title, string message, string icon = "notification_important")
+  {
+    IsAlertDialogVisible = true;
+    AlertDialogIcon = icon;
+    AlertDialogTitle = title;
+    AlertDialogMessage = message;
+  }
+}
 
 <div>
 
@@ -151,6 +204,7 @@
       }
 
       <p/>
+
       <div class="mat-elevation-z0 player-actions-panel-cls">
         <div class="player-actions-panel-cls">
           <MatNumericUpDownField Label="Your Bid"
@@ -174,13 +228,13 @@
         &nbsp;
         <div class="player-actions-panel-cls">
           <MatTooltip Tooltip="Click to sell" Wrap="true">
-            <MatButton Raised="true" style="background-color: red;">
+            <MatButton Raised="true" style="background-color: red; font-size: 75%">
               Best Bid: @ViewModel.FormatPrice(@ViewModel.BestBid)
             </MatButton>
           </MatTooltip>
           &nbsp;
           <MatTooltip Tooltip="Click to buy" Wrap="true">
-            <MatButton Raised="true" style="background-color: limegreen;">
+            <MatButton Raised="true" style="background-color: limegreen; font-size: 75%">
               Best Ask: @ViewModel.FormatPrice(@ViewModel.BestAsk)
             </MatButton>
           </MatTooltip>
@@ -188,40 +242,60 @@
       </div>
 
       <p/>
-      <MatTable Items="@ViewModel.PlayersData" ShowPaging="false" class="mat-elevation-z1 player-table">
-          <MatTableHeader>
-              <th>&nbsp;</th>
-              <th style="font-size: 75%;">Player</th>
-              <th style="font-size: 75%;">Bid Price</th>
-              <th style="font-size: 75%;">Ask Price</th>
-              <th style="font-size: 75%;">Position Qty</th>
-              <th style="font-size: 75%;">Position Cost</th>
-          </MatTableHeader>
-          <MatTableRow>
-              <td style="width: 20px">
-                @if (context.IsConnected)
-                {
-                  <MatTooltip Tooltip="Player is connected" Wrap="true" Context="tmpContext">
-                  <img src="images/green.svg" width=16 height=16/>
-                  </MatTooltip>
-                }
-                else
-                {
-                  <MatTooltip Tooltip="Player is not connected" Wrap="true" Context="tmpContext">
-                  <img src="images/red.svg" width=16 height=16/>
-                  </MatTooltip>
-                }
-              </td>
-              <td class="player-td">
-                <img src="@context.PlayerImageUrl" width=16 height=16/>
-                @context.PlayerName
-              </td>
-              <td class="player-td">@ViewModel.FormatPrice(@context.Bid)</td>
-              <td class="player-td">@ViewModel.FormatPrice(@context.Offer)</td>
-              <td class="player-td">@ViewModel.FormatQty(@context.PositionQty)</td>
-              <td class="player-td">@ViewModel.FormatPrice(@context.PositionPrice)</td>
-          </MatTableRow>
-      </MatTable>
+      <div class="player-tables-panel-cls">
+        <div class="quotes-table-panel-cls">
+          <MatTable Items="@ViewModel.PlayersData" ShowPaging="false" class="mat-elevation-z1 quotes-table-cls">
+              <MatTableHeader>
+                  <th>&nbsp;</th>
+                  <th style="font-size: 75%;">Player</th>
+                  <th style="font-size: 75%;">Bid Price</th>
+                  <th style="font-size: 75%;">Ask Price</th>
+                  <th style="font-size: 75%;">Position Qty</th>
+                  <th style="font-size: 75%;">Position Cost</th>
+              </MatTableHeader>
+              <MatTableRow>
+                  <td style="width: 20px">
+                    @if (context.IsConnected)
+                    {
+                      <MatTooltip Tooltip="Player is connected" Wrap="true" Context="tmpContext">
+                      <img src="images/green.svg" width=16 height=16/>
+                      </MatTooltip>
+                    }
+                    else
+                    {
+                      <MatTooltip Tooltip="Player is not connected" Wrap="true" Context="tmpContext">
+                      <img src="images/red.svg" width=16 height=16/>
+                      </MatTooltip>
+                    }
+                  </td>
+                  <td class="quotes-table-td-cls">
+                    <img src="@context.PlayerImageUrl" width=16 height=16/>
+                    @context.PlayerName
+                  </td>
+                  <td class="quotes-table-td-cls">@ViewModel.FormatPrice(@context.Bid)</td>
+                  <td class="quotes-table-td-cls">@ViewModel.FormatPrice(@context.Offer)</td>
+                  <td class="quotes-table-td-cls">@ViewModel.FormatQty(@context.PositionQty)</td>
+                  <td class="quotes-table-td-cls">@ViewModel.FormatPrice(@context.PositionPrice)</td>
+              </MatTableRow>
+          </MatTable>
+        </div>
+        <div class="trades-table-panel-cls">
+          <MatTable Items="@ViewModel.TradesData" ShowPaging="false" class="mat-elevation-z1 trades-table-cls">
+              <MatTableHeader>
+                  <th style="font-size: 75%;">From Player</th>
+                  <th style="font-size: 75%;">To Player</th>
+                  <th style="font-size: 75%;">Trade Price</th>
+                  <th style="font-size: 75%;">Trade Qty</th>
+              </MatTableHeader>
+              <MatTableRow>
+                  <td class="trades-table-td-cls"></td>
+                  <td class="trades-table-td-cls"></td>
+                  <td class="trades-table-td-cls">@ViewModel.FormatPrice(@context.TradePrice)</td>
+                  <td class="trades-table-td-cls">@ViewModel.FormatQty(@context.TradeQty)</td>
+              </MatTableRow>
+          </MatTable>
+        </div>
+      </div>
     }
     else 
     {
@@ -264,12 +338,24 @@
     ViewModel.GameId = GameId;
     ViewModel.StateChanged += OnViewModelChanged;
     await ViewModel.InitViewModelAsync();
-
-
   }
 
   void OnViewModelChanged(EventArgs e)
   {
+    if (e is GamePlayerViewModel.GameAlertEventArgs)
+    {
+      var alert = (GamePlayerViewModel.GameAlertEventArgs)e;
+      var icon = alert.IsError ? "error" : "notification_important";
+      if (alert.IsModal)
+      {
+        ShowAlertDialog(alert.Title, alert.Message, icon);
+      }
+      else
+      {
+        var toastType = alert.IsError ? MatToastType.Warning : MatToastType.Info;
+        Toaster.Add(alert.Message, toastType, alert.Title, icon);
+      }
+    }
     StateHasChanged();
   }
 

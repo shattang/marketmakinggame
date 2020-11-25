@@ -35,6 +35,16 @@ namespace MarketMakingGame.Client
       builder.Services.AddScoped<UserDataEditorViewModel>();
       builder.Services.AddScoped<GameManagerViewModel>();
 
+      builder.Services.AddMatToaster(config =>
+      {
+        config.Position = MatToastPosition.BottomCenter;
+        //config.PreventDuplicates = true;
+        config.NewestOnTop = true;
+        config.ShowCloseButton = true;
+        config.MaximumOpacity = 100;
+        config.VisibleStateDuration = 10000;
+      });
+
       var webAssemblyHost = builder.Build();
       webAssemblyHost.Services
       .UseBootstrapProviders()

@@ -12,8 +12,6 @@ namespace MarketMakingGame.Shared.Messages
 
     public List<int> CommunityCardIds { get; set; }
 
-    public List<TradeUpdate> TradeUpdates { get; set; }
-
     public double? BestCurrentBid { get; set; }
 
     public double? BestCurrentAsk { get; set; }

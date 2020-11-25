@@ -16,18 +16,20 @@ namespace MarketMakingGame.Server.Hubs
   {
     private readonly ILogger _logger;
     private readonly GameService _gameService;
-    private readonly GameHubEventManager _gameHubEventManager;
 
-    public GameHub(ILogger<GameHub> logger, GameService gameService, GameHubEventManager gameHubEventManager)
+    public GameHub(ILogger<GameHub> logger, GameService gameService)
     {
       _logger = logger;
       _gameService = gameService;
-      _gameHubEventManager = gameHubEventManager;
     }
 
     public override async Task OnDisconnectedAsync(Exception exception)
     {
-      await _gameHubEventManager.RemoveConnection(Context.ConnectionId);
+      var memberships = await _gameService.EventManager.RemoveConnection(Context.ConnectionId);
+      foreach(var m in memberships)
+      {
+        await _gameService.OnPlayerDisconnectedAsync(m.GameId, m.PlayerId);
+      }
     }
 
     public GetCardsResponse GetCards(GetCardsRequest request)
@@ -47,7 +49,7 @@ namespace MarketMakingGame.Server.Hubs
       {
         if (resp.IsSuccess)
         {
-          await _gameHubEventManager.AddConnection(resp.Game.GameId, request.Player.PlayerId, connectionId);
+          await _gameService.EventManager.AddConnection(resp.Game.GameId, request.Player.PlayerId, connectionId);
         }
         _logger.LogInformation("Sending Response: {}", resp);
         await Clients.Caller.SendAsync("OnCreateGameResponse", resp);
@@ -72,7 +74,7 @@ namespace MarketMakingGame.Server.Hubs
       {
         if (resp.IsSuccess)
         {
-          await _gameHubEventManager.AddConnection(request.GameId, request.Player.PlayerId, Context.ConnectionId);
+          await _gameService.EventManager.AddConnection(request.GameId, request.Player.PlayerId, Context.ConnectionId);
         }
         _logger.LogInformation("Sending Response: {}", resp);
         await Clients.Caller.SendAsync("OnJoinGameResponse", resp);

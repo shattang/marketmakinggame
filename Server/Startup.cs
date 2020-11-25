@@ -32,8 +32,9 @@ namespace MarketMakingGame.Server
                           new[] { "application/octet-stream" });
             });
       services.AddDbContext<GameDbContext>();
-      services.AddSingleton<GameService>();
+      services.AddScoped<GameService>();
       services.AddSingleton<GameHubEventManager>();
+      services.AddSingleton<CardRepository>();
     }
 
     public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
@@ -58,7 +59,7 @@ namespace MarketMakingGame.Server
 
       app.UseRouting();
 
-      app.ApplicationServices.GetService<GameService>().Initialize();
+      app.ApplicationServices.GetService<CardRepository>().Initialize();
 
       app.UseEndpoints(endpoints =>
       {
