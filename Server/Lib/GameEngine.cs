@@ -116,13 +116,11 @@ namespace MarketMakingGame.Server.Lib
       }
 
       var cardDeck = _cardRepo.GameStateToCardDeck.GetOrAdd(GameState.GameStateId, _ => {
-        _logger.LogInformation("Created deck GameId={}, CardDeckHash={}", GameState.GameId, GameState.CardDeckHash);
         return new CardDeck(_cardRepo);
       });
 
       if (cardDeck.NeedsRebuild(GameState.CardDeckHash))
       {
-        _logger.LogInformation("Rebuild deck GameId={}, CardDeckHash={}", GameState.GameId, GameState.CardDeckHash);
         GameState.CardDeckHash = cardDeck.RebuildDeck(GameState);
       }
 
@@ -149,7 +147,6 @@ namespace MarketMakingGame.Server.Lib
         GameState.RoundStates.Add(roundState);
       }
 
-      _logger.LogInformation(cardDeck.ToString());
       await _dbContext.SaveChangesAsync();
 
       return (true, string.Empty, playersToDeal);
@@ -189,12 +186,17 @@ namespace MarketMakingGame.Server.Lib
         return (false, $"Quote width should be less than {GameState.Game.MinQuoteWidth}");
       }
 
-      if (GameState.BestCurrentBid.HasValue && newAsk <= GameState.BestCurrentBid)
+      var currBestAsk = GameState.PlayerStates
+        .Where(x => x.PlayerStateId != playerState.PlayerStateId).Select(x => x.CurrentAsk).Min();
+      var currBestBid = GameState.PlayerStates
+        .Where(x => x.PlayerStateId != playerState.PlayerStateId).Select(x => x.CurrentBid).Max();
+
+      if (GameState.BestCurrentBid.HasValue && newAsk <= currBestBid)
       {
         return (false, "Quote Ask Cannot Cross Best Bid");
       }
 
-      if (GameState.BestCurrentAsk.HasValue && newBid >= GameState.BestCurrentAsk)
+      if (GameState.BestCurrentAsk.HasValue && newBid >= currBestAsk)
       {
         return (false, "Quote Bid Cannot Cross Best Ask");
       }
@@ -338,7 +340,7 @@ namespace MarketMakingGame.Server.Lib
         }
         else
         {
-          playerState.SettlementPnl = (playerState.PositionCashFlow ?? 0);
+          playerState.SettlementPnl = -(playerState.PositionCashFlow ?? 0);
         }
       }
 

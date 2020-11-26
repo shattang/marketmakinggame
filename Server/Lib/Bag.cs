@@ -33,10 +33,8 @@ namespace MarketMakingGame.Server.Lib
 
     public Bag(IEnumerable<T> allItems, IEnumerable<T> drawnItems, T defaultValue, int numDecks)
     {
-      System.Console.WriteLine($"{numDecks}");
       var dealt = drawnItems.GroupBy(x => x).ToDictionary(x => x.Key, x => x.Count());
       numDecks = Math.Max(1, Math.Max(numDecks, dealt.Values.DefaultIfEmpty(0).Max()));
-      System.Console.WriteLine($"{numDecks} {string.Join(",", dealt)}");
       _items = allItems
         .Select(x => new ItemCount(x, numDecks - dealt.GetValueOrDefault(x, 0)))
         .Where(x => x.Count > 0)

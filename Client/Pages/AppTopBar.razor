@@ -1,3 +1,5 @@
+@inject NavigationManager NavigationManager
+
 <link href='https://fonts.googleapis.com/css?family=MuseoModerno' rel='stylesheet'>
 
 <div>
@@ -5,8 +7,10 @@
   <table style="width: 100%;">
     <tr>
       <td style="width: 90%;">
-        <div style="font-family: 'MuseoModerno'; font-size: 22px; text-align: left;display: inline-block;">
-          MarketMakerPoker
+        <div>
+          <a 
+            style="font-family: 'MuseoModerno'; font-size: 22px; text-align: left;display: inline-block; color: black; text-decoration: none"
+            href="@NavigationManager.BaseUri">MarketMakerPoker</a>
         </div>
       </td>
       <td style="width: 10%;">

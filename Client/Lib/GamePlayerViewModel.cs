@@ -9,6 +9,7 @@ using MarketMakingGame.Shared.Models;
 using Microsoft.Extensions.Logging;
 using Microsoft.AspNetCore.Components;
 using System.Threading;
+using Microsoft.JSInterop;
 
 namespace MarketMakingGame.Client.Lib
 {
@@ -34,6 +35,8 @@ namespace MarketMakingGame.Client.Lib
       public string PlayerImageUrl { get; set; }
       public double PositionQty { get; set; }
       public double PositionPrice { get; set; }
+      public double CurrentPnl { get; set; }
+      public double SettlementPnl { get; set; }
       public bool IsConnected { get; set; }
     }
 
@@ -49,6 +52,7 @@ namespace MarketMakingGame.Client.Lib
     private ILogger Logger { get; }
     private NavigationManager NavigationManager { get; }
     private GameClient GameClient { get; }
+    public IJSRuntime JSRuntime { get; }
     public string GameId { get; set; }
     public JoinGameResponse JoinGameResponse { get; set; }
     public PlayerUpdateResponse PlayerUpdateResponse { get; set; }
@@ -58,12 +62,13 @@ namespace MarketMakingGame.Client.Lib
     public Card UnopenedCard { get; set; }
 
     public GamePlayerViewModel(UserDataEditorViewModel localStorage, ILoggerProvider loggerProvider,
-      NavigationManager navigationManager, GameClient gameClient)
+      NavigationManager navigationManager, GameClient gameClient, IJSRuntime jSRuntime)
     {
       UserDataEditor = localStorage;
       Logger = loggerProvider.CreateLogger(nameof(GamePlayerViewModel));
       NavigationManager = navigationManager;
       GameClient = gameClient;
+      JSRuntime = jSRuntime;
       GameClient.OnJoinGameResponse += HandleJoinGameResponse;
       GameClient.OnPlayerUpdateResponse += HandlePlayerUpdateResponse;
       GameClient.OnGameUpdateResponse += HandleGameUpdateResponse;
@@ -239,6 +244,31 @@ namespace MarketMakingGame.Client.Lib
       return Cards.Where(x => x.CardId == cardId).DefaultIfEmpty(UnopenedCard).First().CardImageUrl;
     }
 
+    public string CurrentGameStatus
+    {
+      get
+      {
+        if (!GameClient.IsConnected)
+        {
+          return "Not Connected";
+        }
+        else
+        {
+          if (GameUpdateResponse == null)
+            return string.Empty;
+
+          if (GameUpdateResponse.IsFinished)
+          {
+            return $"Game Finished. Settlement Price is {FormatPrice(GameUpdateResponse.SettlementPrice)}";
+          }
+          else
+          {
+            return $"Game in Progress. Current Indicative Price is {FormatPrice(IndicativePrice)}";
+          }
+        }
+      }
+    }
+
     public double BestBid
     {
       get
@@ -287,16 +317,32 @@ namespace MarketMakingGame.Client.Lib
           var myPlayerId = PlayerUpdateResponse != null ? PlayerUpdateResponse.PlayerPublicId : -1;
           return GameUpdateResponse.PlayerPublicStates.Select(x =>
           {
-            return new PlayerData()
+            var data = new PlayerData()
             {
               PlayerName = x.PlayerPublicId == myPlayerId ? $"{x.DisplayName} (You)" : x.DisplayName,
               PlayerImageUrl = UserDataEditorViewModel.ToPlayerAvatarUrl(x.AvatarSeed),
               Bid = x.CurrentBid.HasValue ? x.CurrentBid.Value : double.NaN,
               Offer = x.CurrentAsk.HasValue ? x.CurrentAsk.Value : double.NaN,
-              PositionPrice = x.PositionCashFlow.HasValue && x.PositionQty > 0 ? x.PositionCashFlow.Value / x.PositionQty.Value : double.NaN,
-              PositionQty = x.PositionQty.HasValue ? x.PositionQty.Value : double.NaN,
+              PositionPrice = x.PositionCashFlow.HasValue && x.PositionQty.HasValue && x.PositionQty != 0
+                ? x.PositionCashFlow.Value / x.PositionQty.Value : double.NaN,
+              PositionQty = x.PositionQty.HasValue ? x.PositionQty.Value : 0,
+              SettlementPnl = x.SettlementPnl.HasValue ? x.SettlementPnl.Value : double.NaN,
               IsConnected = x.IsConnected
             };
+
+            if (!GameUpdateResponse.IsFinished)
+            {
+              if (data.PositionQty == 0)
+              {
+                data.CurrentPnl = (-x.PositionCashFlow ?? double.NaN);
+              }
+              else
+              {
+                data.CurrentPnl = data.PositionQty > 0 ? (BestBid - data.PositionPrice) * data.PositionQty
+                : (data.PositionQty < 0 ? (BestAsk - data.PositionPrice) * data.PositionQty : double.NaN);
+              }
+            }
+            return data;
           }).OrderBy(x => x.PlayerName);
         }
         return Enumerable.Empty<PlayerData>();
@@ -307,24 +353,18 @@ namespace MarketMakingGame.Client.Lib
     {
       get
       {
-        PlayerPublicState getPlayer(int playerId)
+        if (GameUpdateResponse == null || Trades == null)
         {
-          if (GameUpdateResponse != null)
-          {
-            return GameUpdateResponse.PlayerPublicStates
-              .FirstOrDefault(x => x.PlayerPublicId == playerId);
-          }
-          return null;
+          return Enumerable.Empty<TradeData>();
         }
 
+        var names = GameUpdateResponse.PlayerPublicStates.ToDictionary(x => x.PlayerPublicId, x => x.DisplayName);
         return Trades.Values.OrderBy(x => x.TradeId).Select(x =>
         {
-          var initiator = getPlayer(x.InitiatorPlayerPublicId);
-          var target = getPlayer(x.TargetPlayerPublicId);
           return new TradeData()
           {
-            InitiatingPlayerName = initiator?.DisplayName ?? string.Empty,
-            TargetPlayerName = target?.DisplayName ?? string.Empty,
+            InitiatingPlayerName = names.GetValueOrDefault(x.InitiatorPlayerPublicId) ?? x.InitiatorPlayerPublicId.ToString(),
+            TargetPlayerName = names.GetValueOrDefault(x.TargetPlayerPublicId) ?? x.TargetPlayerPublicId.ToString(),
             TradePrice = x.TradePrice,
             TradeQty = x.TradeQty
           };
@@ -332,14 +372,31 @@ namespace MarketMakingGame.Client.Lib
       }
     }
 
-    public string FormatPrice(double val)
+    public string PriceStyle(double? val)
     {
-      return Double.IsNaN(val) ? "-" : String.Format("${0:f2}", val);
+      if (val == null || !Double.IsFinite(val.Value) || val == 0)
+      {
+        return string.Empty;
+      }
+      else if (val > 0)
+      {
+        return "font-weight: bold; color: limegreen;";
+      }
+      else
+      {
+        return "font-weight: bold; color: darkred;";
+      }
     }
 
-    public string FormatQty(double val)
+    public string FormatPrice(double? val)
     {
-      return Double.IsNaN(val) ? "-" : String.Format("${0:f2}", val);
+      var ret = val == null || Double.IsNaN(val.Value) ? "-" : String.Format("${0:f2}", val.Value);
+      return ret;
+    }
+
+    public string FormatQty(double? val)
+    {
+      return val == null || Double.IsNaN(val.Value) ? "-" : String.Format("{0:f2}", val.Value);
     }
 
     public double BidPrice
@@ -369,14 +426,17 @@ namespace MarketMakingGame.Client.Lib
       return true;
     }
 
-    public void SendUpdateQuoteRequest()
+    public async Task SendUpdateQuoteRequest()
     {
       if (!CheckIsConnected("UpdateQuote"))
       {
         return;
       }
 
-      GameClient.SendRequestAsync("UpdateQuote", new UpdateQuoteRequest()
+      if (!await JSRuntime.InvokeAsync<bool>("confirm", $"Are you sure you want to Update Quote?"))
+        return;
+
+      await GameClient.SendRequestAsync("UpdateQuote", new UpdateQuoteRequest()
       {
         CurrentAsk = AskPrice,
         CurrentBid = BidPrice,
@@ -385,14 +445,17 @@ namespace MarketMakingGame.Client.Lib
       });
     }
 
-    public void SendTradeRequest(bool isBuy)
+    public async Task SendTradeRequest(bool isBuy)
     {
       if (!CheckIsConnected("Trade"))
       {
         return;
       }
 
-      GameClient.SendRequestAsync("Trade", new TradeRequest()
+      if (!await JSRuntime.InvokeAsync<bool>("confirm", $"Are you sure you want to Submit Trade?"))
+        return;
+
+      await GameClient.SendRequestAsync("Trade", new TradeRequest()
       {
         IsBuy = isBuy,
         GameId = GameId,
@@ -400,9 +463,9 @@ namespace MarketMakingGame.Client.Lib
       });
     }
 
-    public void SendDealRequest()
+    public async Task SendDealRequest()
     {
-      var request = GameUpdateResponse.AllRoundsFinished ? 
+      var request = GameUpdateResponse.AllRoundsFinished ?
         DealGameRequest.RequestTypes.FinishGame : DealGameRequest.RequestTypes.DealCard;
 
       if (!CheckIsConnected(request.ToString()))
@@ -410,7 +473,10 @@ namespace MarketMakingGame.Client.Lib
         return;
       }
 
-      GameClient.SendRequestAsync("DealGame", new DealGameRequest()
+      if (!await JSRuntime.InvokeAsync<bool>("confirm", $"Are you sure you want to {request}?"))
+        return;
+
+      await GameClient.SendRequestAsync("DealGame", new DealGameRequest()
       {
         RequestType = request,
         GameId = GameId,
@@ -418,15 +484,31 @@ namespace MarketMakingGame.Client.Lib
       });
     }
 
-    public void SendLockTradingRequest(bool block)
+    public string LockTradingStatus
     {
+      get
+      {
+        if (GameUpdateResponse != null)
+        {
+          return GameUpdateResponse.IsTradingLocked ? "Trading Locked" : "Trading Allowed";
+        }
+        return "";
+      }
+    }
+
+    public async Task SendLockTradingRequest()
+    {
+      var block = !GameUpdateResponse?.IsTradingLocked ?? false;
       var request = block ? DealGameRequest.RequestTypes.LockTrading : DealGameRequest.RequestTypes.UnlockTrading;
       if (!CheckIsConnected(request.ToString()))
       {
         return;
       }
 
-      GameClient.SendRequestAsync("DealGame", new DealGameRequest()
+      if (!await JSRuntime.InvokeAsync<bool>("confirm", $"Are you sure you want to {request}?"))
+        return;
+
+      await GameClient.SendRequestAsync("DealGame", new DealGameRequest()
       {
         RequestType = request,
         GameId = GameId,

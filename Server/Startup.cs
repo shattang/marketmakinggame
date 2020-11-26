@@ -35,6 +35,7 @@ namespace MarketMakingGame.Server
       services.AddScoped<GameService>();
       services.AddSingleton<GameHubEventManager>();
       services.AddSingleton<CardRepository>();
+      services.AddHostedService<DeleteGamesScheduledService>();
     }
 
     public void Configure(IApplicationBuilder app, IWebHostEnvironment env)

@@ -34,31 +34,21 @@ namespace MarketMakingGame.Server.Lib
 
     public async Task OnPlayerDisconnectedAsync(string gameId, string playerId)
     {
-      var (success, errMessage) = await DeleteGameIfFinished(gameId, playerId);
-      if (success)
-      {
-        _logger.LogInformation("Game deleted on disconnect: GameId={}", gameId);
-        return;
-      }
-      else
-      {
-        var gameState = await _dbContext.GameStates
+      var gameState = await _dbContext.GameStates
             .FirstOrDefaultAsync(x => x.GameId == gameId);
-
-        if (gameState != null)
+      if (gameState != null)
+      {
+        var playerState = gameState.PlayerStates
+          .FirstOrDefault(x => x.PlayerId == playerId);
+        if (playerState != null)
         {
-          var playerState = gameState.PlayerStates
-            .FirstOrDefault(x => x.PlayerId == playerId);
-          if (playerState != null)
-          {
-            playerState.CurrentAsk = null;
-            playerState.CurrentBid = null;
-            gameState.BestCurrentAsk = gameState.PlayerStates.Select(x => x.CurrentAsk).Min();
-            gameState.BestCurrentBid = gameState.PlayerStates.Select(x => x.CurrentBid).Max();
-            playerState.IsConnected = false;
-            await _dbContext.SaveChangesAsync();
-            InvokeOnGameUpdate(MakeGameUpdateResponse(gameState));
-          }
+          playerState.CurrentAsk = null;
+          playerState.CurrentBid = null;
+          gameState.BestCurrentAsk = gameState.PlayerStates.Select(x => x.CurrentAsk).Min();
+          gameState.BestCurrentBid = gameState.PlayerStates.Select(x => x.CurrentBid).Max();
+          playerState.IsConnected = false;
+          await _dbContext.SaveChangesAsync();
+          InvokeOnGameUpdate(MakeGameUpdateResponse(gameState));
         }
       }
     }
@@ -433,7 +423,7 @@ namespace MarketMakingGame.Server.Lib
       }
     }
 
-    private async Task<(bool IsSuccess, string ErrorMessage)> DeleteGameIfFinished(string gameId, string requestingPlayerId)
+    public async Task<(bool IsSuccess, string ErrorMessage)> DeleteGameIfFinished(string gameId, string requestingPlayerId)
     {
       var gameState = await _dbContext.GameStates
           .FirstOrDefaultAsync(x => x.GameId == gameId);

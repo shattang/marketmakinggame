@@ -5,6 +5,8 @@
 @inject GamePlayerViewModel GamePlayerViewModel
 @inject UserDataEditorViewModel UserDataEditorViewModel
 @inject IMatToaster Toaster
+@inject IJSRuntime JSRuntime
+@inject NavigationManager NavigationManager
 
 <style>
   .card-image-cls {
@@ -140,22 +142,23 @@
     @if (ViewModel.JoinGameResponse.IsSuccess)
     {
       <div class="mat-elevation-z1 game-info-cls">
-          <div >
-            @ViewModel.JoinGameResponse.Game.GameName
-          </div>
-          <div>
-          </div>
-          <div>
-            <MatTooltip Tooltip="Sum of the value of all cards, including your private card." Wrap="true">
-              <div style="font-size: 75%; font-color: darkgray">
-                Current Price: @ViewModel.FormatPrice(@ViewModel.IndicativePrice)
-              </div>
+          <div style="font-color: darkgray">
+            Playing Game: @ViewModel.JoinGameResponse.Game.GameName
+            <MatTooltip Tooltip="Click to share link to this Game" Wrap="true">
+              <MatButton style="text-align: center;" Icon="share" OnClick="@CopyUrlToClipboard"></MatButton>
             </MatTooltip>
+          </div>
+          <div>
+          </div>
+          <div>
+            <div style="text-align: center; font-size: 75%; font-color: darkgray">
+              @ViewModel.CurrentGameStatus
+              <MatButton Style="width: 2px;"></MatButton>
+            </div>
           </div>
       </div>
 
       <p/>
-
       <div class="card-group-cls card-panel-cls">
           <div class="column card-group-cls user-card-group-cls mat-elevation-z5">
             <div class="card-content-cls">
@@ -183,28 +186,33 @@
             @if (ViewModel.GameUpdateResponse.AllRoundsFinished)
             {
               <MatTooltip Tooltip="Click to mark game finished and display results" Wrap="true">
-              <MatButton Outlined="true">
-                Finish
-              </MatButton>
+                <MatButton Outlined="true" style="background-color: orange; height: 100%; text-align: center;"
+                  OnClick="@(async e => { await ViewModel.SendDealRequest(); })">
+                  Finish Game
+                </MatButton>
               </MatTooltip>
             }
             else
             {
               <MatTooltip Tooltip="Click to deal next card" Wrap="true">
-              <MatButton Outlined="true">
-                <p>Deal</p>
-              </MatButton>
+                <MatButton Outlined="true" style="height: 100%; text-align: center;"
+                  OnClick="@(async e => { await ViewModel.SendDealRequest(); })">
+                  Deal Card
+                </MatButton>
               </MatTooltip>
             }
-          &nbsp;
-          &nbsp;
-          <MatSlideToggle TValue="bool" Label="Allow Trading"></MatSlideToggle>
+            &nbsp;
+            <MatTooltip Tooltip="Click to lock or unlock trading" Wrap="true">
+                <MatButton Outlined="true" style="height: 100%; text-align: center;"
+                  OnClick="@(async e => { await ViewModel.SendLockTradingRequest(); })">
+                  @ViewModel.LockTradingStatus
+                </MatButton>
+              </MatTooltip>
           </div>
         </div>
       }
 
       <p/>
-
       <div class="mat-elevation-z0 player-actions-panel-cls">
         <div class="player-actions-panel-cls">
           <MatNumericUpDownField Label="Your Bid"
@@ -220,7 +228,8 @@
           </MatNumericUpDownField>
           &nbsp;
           <MatTooltip Tooltip="Click to update quote" Wrap="true">
-            <MatButton Outlined="true">
+            <MatButton Outlined="true" style="font-size: 75%; height: 100%"
+              OnClick="@(async e => { await ViewModel.SendUpdateQuoteRequest(); })">
               Update!
             </MatButton>
           </MatTooltip>
@@ -228,13 +237,15 @@
         &nbsp;
         <div class="player-actions-panel-cls">
           <MatTooltip Tooltip="Click to sell" Wrap="true">
-            <MatButton Raised="true" style="background-color: red; font-size: 75%">
+            <MatButton Raised="true" style="background-color: red; color: black; font-size: 50%; height: 100%"
+              OnClick="@(async e => { await ViewModel.SendTradeRequest(false); })">
               Best Bid: @ViewModel.FormatPrice(@ViewModel.BestBid)
             </MatButton>
           </MatTooltip>
           &nbsp;
           <MatTooltip Tooltip="Click to buy" Wrap="true">
-            <MatButton Raised="true" style="background-color: limegreen; font-size: 75%">
+            <MatButton Raised="true" style="background-color: limegreen; color: black; font-size: 50%; height: 100%"
+              OnClick="@(async e => { await ViewModel.SendTradeRequest(true); })">
               Best Ask: @ViewModel.FormatPrice(@ViewModel.BestAsk)
             </MatButton>
           </MatTooltip>
@@ -252,6 +263,8 @@
                   <th style="font-size: 75%;">Ask Price</th>
                   <th style="font-size: 75%;">Position Qty</th>
                   <th style="font-size: 75%;">Position Cost</th>
+                  <th style="font-size: 75%;">Pnl</th>
+                  <th style="font-size: 75%;">Settlement Pnl</th>
               </MatTableHeader>
               <MatTableRow>
                   <td style="width: 20px">
@@ -264,7 +277,7 @@
                     else
                     {
                       <MatTooltip Tooltip="Player is not connected" Wrap="true" Context="tmpContext">
-                      <img src="images/red.svg" width=16 height=16/>
+                      <img src="images/gray.svg" width=16 height=16/>
                       </MatTooltip>
                     }
                   </td>
@@ -272,24 +285,38 @@
                     <img src="@context.PlayerImageUrl" width=16 height=16/>
                     @context.PlayerName
                   </td>
-                  <td class="quotes-table-td-cls">@ViewModel.FormatPrice(@context.Bid)</td>
-                  <td class="quotes-table-td-cls">@ViewModel.FormatPrice(@context.Offer)</td>
-                  <td class="quotes-table-td-cls">@ViewModel.FormatQty(@context.PositionQty)</td>
-                  <td class="quotes-table-td-cls">@ViewModel.FormatPrice(@context.PositionPrice)</td>
+                  <td class="quotes-table-td-cls" style="@ViewModel.PriceStyle(@context.Bid)">
+                    @ViewModel.FormatPrice(@context.Bid)
+                  </td>
+                  <td class="quotes-table-td-cls" style="@ViewModel.PriceStyle(@context.Offer)">
+                    @ViewModel.FormatPrice(@context.Offer)
+                  </td>
+                  <td class="quotes-table-td-cls">
+                    @ViewModel.FormatQty(@context.PositionQty)
+                  </td>
+                  <td class="quotes-table-td-cls" style="@ViewModel.PriceStyle(@context.PositionPrice)">
+                    @ViewModel.FormatPrice(@context.PositionPrice)
+                  </td>
+                  <td class="quotes-table-td-cls" style="@ViewModel.PriceStyle(@context.CurrentPnl)">
+                    @ViewModel.FormatPrice(@context.CurrentPnl)
+                  </td>
+                  <td class="quotes-table-td-cls" style="@ViewModel.PriceStyle(@context.SettlementPnl)">
+                    @ViewModel.FormatPrice(@context.SettlementPnl)
+                  </td>
               </MatTableRow>
           </MatTable>
         </div>
         <div class="trades-table-panel-cls">
-          <MatTable Items="@ViewModel.TradesData" ShowPaging="false" class="mat-elevation-z1 trades-table-cls">
+          <MatTable Items="@ViewModel.TradesData" ShowPaging="true" class="mat-elevation-z1 trades-table-cls">
               <MatTableHeader>
-                  <th style="font-size: 75%;">From Player</th>
-                  <th style="font-size: 75%;">To Player</th>
+                  <th style="font-size: 75%;">Trade From</th>
+                  <th style="font-size: 75%;">Trade To</th>
                   <th style="font-size: 75%;">Trade Price</th>
                   <th style="font-size: 75%;">Trade Qty</th>
               </MatTableHeader>
               <MatTableRow>
-                  <td class="trades-table-td-cls"></td>
-                  <td class="trades-table-td-cls"></td>
+                  <td class="trades-table-td-cls">@context.InitiatingPlayerName</td>
+                  <td class="trades-table-td-cls">@context.TargetPlayerName</td>
                   <td class="trades-table-td-cls">@ViewModel.FormatPrice(@context.TradePrice)</td>
                   <td class="trades-table-td-cls">@ViewModel.FormatQty(@context.TradeQty)</td>
               </MatTableRow>
@@ -357,6 +384,12 @@
       }
     }
     StateHasChanged();
+  }
+
+  async Task CopyUrlToClipboard()
+  {
+    await JSRuntime.InvokeVoidAsync("navigator.clipboard.writeText", NavigationManager.Uri);
+    ShowAlertDialog("Copied", "Url copied to clipboard", "assignment");
   }
 
   public void Dispose()
