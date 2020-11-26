@@ -115,7 +115,8 @@ namespace MarketMakingGame.Server.Lib
         return (false, "Cannot deal, All rounds are done", Enumerable.Empty<PlayerState>());
       }
 
-      var cardDeck = _cardRepo.GameStateToCardDeck.GetOrAdd(GameState.GameStateId, _ => {
+      var cardDeck = _cardRepo.GameStateToCardDeck.GetOrAdd(GameState.GameStateId, _ =>
+      {
         return new CardDeck(_cardRepo);
       });
 
@@ -152,14 +153,33 @@ namespace MarketMakingGame.Server.Lib
       return (true, string.Empty, playersToDeal);
     }
 
-    public async Task<UpdateQuoteResponse> UpdateQuote(UpdateQuoteRequest request)
+    private void UpdateBestBidAndAsk()
+    {
+      UpdateBestAsk();
+      UpdateBestBid();
+    }
+
+    private double? UpdateBestBid()
+    {
+      GameState.BestCurrentBid = GameState.PlayerStates.Select(x => x.CurrentBid).Max();
+      return GameState.BestCurrentBid;
+    }
+
+    private double? UpdateBestAsk()
+    {
+      GameState.BestCurrentAsk = GameState.PlayerStates.Select(x => x.CurrentAsk).Min();
+      return GameState.BestCurrentAsk;
+    }
+
+    public async Task<(UpdateQuoteResponse, List<Trade>)> UpdateQuote(UpdateQuoteRequest request)
     {
       var resp = new UpdateQuoteResponse() { RequestId = request.RequestId, Message = string.Empty };
+      var trades = new List<Trade>();
 
       if (GameState.IsFinished)
       {
         resp.ErrorMessage = "Game is Finished";
-        return resp;
+        return (resp, trades);
       }
 
       var playerState = GameState.PlayerStates
@@ -168,32 +188,33 @@ namespace MarketMakingGame.Server.Lib
       if (playerState == null)
       {
         resp.ErrorMessage = "PlayerId not found";
-        return resp;
+        return (resp, trades);
       }
 
       var newAsk = request.CurrentAsk ?? playerState.CurrentAsk;
       var newBid = request.CurrentBid ?? playerState.CurrentBid;
-
       if (!(newAsk.HasValue && newBid.HasValue))
       {
         resp.ErrorMessage = "Need to quote both Bid and Ask";
-        return resp;
+        return (resp, trades);
       }
 
-      var currBestAsk = GameState.PlayerStates
-        .Where(x => x.PlayerStateId != playerState.PlayerStateId).Select(x => x.CurrentAsk).Min();
-      var currBestBid = GameState.PlayerStates
-        .Where(x => x.PlayerStateId != playerState.PlayerStateId).Select(x => x.CurrentBid).Max();
+      playerState.CurrentAsk = null;
+      playerState.CurrentBid = null;
 
-      if (GameState.BestCurrentBid.HasValue && newAsk <= currBestBid)
+      UpdateBestBidAndAsk();
+
+      var tradeReq = new TradeRequest() { RequestId = request.RequestId, GameId = request.GameId, PlayerId = request.PlayerId };
+      while (GameState.BestCurrentBid.HasValue && newAsk <= GameState.BestCurrentBid)
       {
-        newAsk = currBestBid + GameState.Game.MinQuoteWidth;
-        resp.Message += $"Ask crossed Best Bid and was limited to {newAsk}. ";
+        tradeReq.IsBuy = false;
+        tradeReq.Price = GameState.BestCurrentBid.Value;
+        TradeInternal(tradeReq);
       }
 
-      if (GameState.BestCurrentAsk.HasValue && newBid >= currBestAsk)
+      if (GameState.BestCurrentAsk.HasValue && newBid >= bestAskExcludeSelf)
       {
-        newBid = currBestAsk - GameState.Game.MinQuoteWidth;
+        newBid = bestAskExcludeSelf - GameState.Game.MinQuoteWidth;
         resp.Message += $"Bid crossed Best Ask and was limited to {newBid}. ";
       }
 
@@ -223,28 +244,26 @@ namespace MarketMakingGame.Server.Lib
       return resp;
     }
 
-    public async Task<(bool, string)> LockTrading(bool locked)
-    {
-      if (GameState.IsTradingLocked == locked)
-      {
-        return (false, "Trading is already " + (locked ? "Locked" : "Unlocked"));
-      }
-
-      GameState.IsTradingLocked = locked;
-      await _dbContext.SaveChangesAsync();
-      return (true, null);
-    }
-
     public async Task<(bool, string, List<Trade>)> Trade(TradeRequest request)
     {
+      var ret = TradeInternal(request);
+      if (ret.IsSuccess)
+      {
+        await _dbContext.SaveChangesAsync();
+      }
+      return ret;
+    }
+
+    private (bool IsSuccess, string ErrorMessage, List<Trade> Trades) TradeInternal(TradeRequest request)
+    {
+      if (GameState.IsFinished)
+      {
+        return (false, "Game is Finished", null);
+      }
+
       if (GameState.IsTradingLocked)
       {
         return (false, "Trading is currently locked by Dealer", null);
-      }
-
-      if (GameState.IsFinished)
-      {
-        return (false, "Game is marked finished by Dealer", null);
       }
 
       var initiatorPlayer = GameState.PlayerStates
@@ -263,18 +282,27 @@ namespace MarketMakingGame.Server.Lib
           return (false, "No Best Ask Price Quoted to Buy", null);
         }
 
+        if (GameState.BestCurrentAsk.Value - request.Price > 1E-6)
+        {
+          return (false, "Ask Price is worse than requested buy price", null);
+        }
+
         targetPlayers = GameState.PlayerStates
           .Where(x => x.PlayerStateId != initiatorPlayer.PlayerStateId &&
             x.CurrentAsk.HasValue &&
             Math.Abs(x.CurrentAsk.Value - GameState.BestCurrentAsk.Value) < 1E-6)
           .ToList();
-
       }
       else
       {
         if (!GameState.BestCurrentBid.HasValue)
         {
           return (false, "No Best Bid Price Quoted to Sell", null);
+        }
+
+        if (request.Price - GameState.BestCurrentBid.Value > 1E-6)
+        {
+          return (false, "Bid Price is worse than requested price", null);
         }
 
         targetPlayers = GameState.PlayerStates
@@ -327,12 +355,20 @@ namespace MarketMakingGame.Server.Lib
       initiatorPlayer.PositionQty = currPosQty + initiatorTradeQty * initiatorSide;
       initiatorPlayer.PositionCashFlow = currPosCashflow + initiatorTradeQty * tradePrice * initiatorSide;
 
-      GameState.BestCurrentAsk = GameState.PlayerStates.Select(x => x.CurrentAsk).Min();
-      GameState.BestCurrentBid = GameState.PlayerStates.Select(x => x.CurrentBid).Max();
-
-      await _dbContext.SaveChangesAsync();
-
+      UpdateBestBidAndAsk();
       return (true, null, trades);
+    }
+
+    public async Task<(bool, string)> LockTrading(bool locked)
+    {
+      if (GameState.IsTradingLocked == locked)
+      {
+        return (false, "Trading is already " + (locked ? "Locked" : "Unlocked"));
+      }
+
+      GameState.IsTradingLocked = locked;
+      await _dbContext.SaveChangesAsync();
+      return (true, null);
     }
 
     public async Task<(bool, string)> FinishGame()

@@ -16,6 +16,7 @@ namespace MarketMakingGame.Server.Lib
   public class GameService
   {
     private const int MAX_GAMES_PER_USER = 2;
+    private static ConcurrentDictionary<string, string> _lockedGames = new ConcurrentDictionary<string, string>();
     private readonly CardRepository _cardRepo;
     public GameHubEventManager EventManager { get; }
     private readonly GameDbContext _dbContext;
@@ -32,25 +33,22 @@ namespace MarketMakingGame.Server.Lib
       EventManager = eventManager;
     }
 
-    public async Task OnPlayerDisconnectedAsync(string gameId, string playerId)
+    private static async Task<bool> AcquireGameLock(string gameId, string lockSecret, TimeSpan timeout)
     {
-      var gameState = await _dbContext.GameStates
-            .FirstOrDefaultAsync(x => x.GameId == gameId);
-      if (gameState != null)
+      DateTime start = DateTime.Now;
+      while (_lockedGames.GetOrAdd(gameId, k => lockSecret) != lockSecret)
       {
-        var playerState = gameState.PlayerStates
-          .FirstOrDefault(x => x.PlayerId == playerId);
-        if (playerState != null)
-        {
-          playerState.CurrentAsk = null;
-          playerState.CurrentBid = null;
-          gameState.BestCurrentAsk = gameState.PlayerStates.Select(x => x.CurrentAsk).Min();
-          gameState.BestCurrentBid = gameState.PlayerStates.Select(x => x.CurrentBid).Max();
-          playerState.IsConnected = false;
-          await _dbContext.SaveChangesAsync();
-          InvokeOnGameUpdate(MakeGameUpdateResponse(gameState));
-        }
+        if ((DateTime.Now - start) > timeout)
+          return false;
+        await Task.Delay(50);
       }
+      return true;
+    }
+
+    private static void ReleaseGameLock(string gameId, string lockSecret)
+    {
+      var coll = ((ICollection<KeyValuePair<string, string>>)_lockedGames);
+      coll.Remove(new KeyValuePair<string, string>(gameId, lockSecret));
     }
 
     public async Task<GetGameInfoResponse> GetGameInfo(GetGameInfoRequest request)
@@ -121,42 +119,48 @@ namespace MarketMakingGame.Server.Lib
 
       var resp = new JoinGameResponse() { RequestId = request.RequestId };
 
-      if (String.IsNullOrWhiteSpace(request.GameId))
+      try
       {
-        resp.ErrorMessage = "Invalid GameId";
+        if (!await AcquireGameLock(request.GameId, request.RequestId, TimeSpan.FromSeconds(30)))
+        {
+          resp.ErrorMessage = "Timed out while acquiring game lock";
+          await responseHandler(resp);
+          return;
+        }
+
+        var gameState = await _dbContext.GameStates
+          .FirstOrDefaultAsync(x => x.GameId == request.GameId);
+        if (gameState == null)
+        {
+          resp.ErrorMessage = "GameId not found";
+          await responseHandler(resp);
+          return;
+        }
+
+        if (gameState.IsFinished)
+        {
+          resp.ErrorMessage = "Game is finished";
+          await responseHandler(resp);
+          return;
+        }
+
+        var gameEngine = new GameEngine(_loggerProvider, _dbContext, _cardRepo);
+        gameEngine.GameState = gameState;
+
+        var playerState = await gameEngine.JoinGameAsync(request);
+        resp.IsSuccess = true;
+        resp.Game = gameEngine.GameState.Game;
         await responseHandler(resp);
-        return;
+
+        InvokeOnPlayerUpdate(MakePlayerUpdateResponse(playerState));
+        InvokeOnGameUpdate(MakeGameUpdateResponse(gameEngine.GameState));
+        InvokeOnTradeUpdate(playerState.PlayerId,
+          MakeTradeUpdateResponse(gameEngine.GameState.GameId, gameEngine.GameState.Trades));
       }
-
-
-      var gameState = await _dbContext.GameStates
-        .FirstOrDefaultAsync(x => x.GameId == request.GameId);
-      if (gameState == null)
+      finally
       {
-        resp.ErrorMessage = "GameId not found";
-        await responseHandler(resp);
-        return;
+        ReleaseGameLock(request.GameId, request.RequestId);
       }
-
-      if (gameState.IsFinished)
-      {
-        resp.ErrorMessage = "Game is finished";
-        await responseHandler(resp);
-        return;
-      }
-
-      var gameEngine = new GameEngine(_loggerProvider, _dbContext, _cardRepo);
-      gameEngine.GameState = gameState;
-
-      var playerState = await gameEngine.JoinGameAsync(request);
-      resp.IsSuccess = true;
-      resp.Game = gameEngine.GameState.Game;
-      await responseHandler(resp);
-
-      InvokeOnPlayerUpdate(MakePlayerUpdateResponse(playerState));
-      InvokeOnGameUpdate(MakeGameUpdateResponse(gameEngine.GameState));
-      InvokeOnTradeUpdate(playerState.PlayerId,
-        MakeTradeUpdateResponse(gameEngine.GameState.GameId, gameEngine.GameState.Trades));
     }
 
     public async Task DealGameAsync(DealGameRequest request, Func<DealGameResponse, Task> responseHandler)
@@ -165,81 +169,95 @@ namespace MarketMakingGame.Server.Lib
 
       var resp = new DealGameResponse() { RequestId = request.RequestId };
 
-      if (request.RequestType == DealGameRequest.RequestTypes.DeleteGame)
+      try
       {
-        (resp.IsSuccess, resp.ErrorMessage) = await DeleteGameIfFinished(request.GameId, request.PlayerId);
-        await responseHandler(resp);
-        return;
-      }
-
-      var gameState = await _dbContext.GameStates
-        .FirstOrDefaultAsync(x => x.GameId == request.GameId);
-      if (gameState == null)
-      {
-        resp.ErrorMessage = "GameId not found";
-        await responseHandler(resp);
-        return;
-      }
-
-      var gameEngine = new GameEngine(_loggerProvider, _dbContext, _cardRepo);
-      gameEngine.GameState = gameState;
-
-      if (gameEngine.GameState.IsFinished)
-      {
-        resp.ErrorMessage = "Game is finished";
-        await responseHandler(resp);
-        return;
-      }
-
-      if (gameEngine.GameState.PlayerId != request.PlayerId)
-      {
-        resp.ErrorMessage = "Only dealer can initiate this request";
-        await responseHandler(resp);
-        return;
-      }
-
-      if (request.RequestType == DealGameRequest.RequestTypes.DealCard)
-      {
-        var (success, err, updatedPlayerStates) = await gameEngine.DealPlayerCards();
-        resp.IsSuccess = success;
-        resp.ErrorMessage = err;
-        await responseHandler(resp);
-
-        if (resp.IsSuccess)
+        if (!await AcquireGameLock(request.GameId, request.RequestId, TimeSpan.FromSeconds(30)))
         {
-          foreach (var playerState in updatedPlayerStates)
+          resp.ErrorMessage = "Timed out while acquiring game lock";
+          await responseHandler(resp);
+          return;
+        }
+
+        if (request.RequestType == DealGameRequest.RequestTypes.DeleteGame)
+        {
+          (resp.IsSuccess, resp.ErrorMessage) = await DeleteGameIfFinished(request.GameId, request.PlayerId);
+          await responseHandler(resp);
+          return;
+        }
+
+        var gameState = await _dbContext.GameStates
+          .FirstOrDefaultAsync(x => x.GameId == request.GameId);
+        if (gameState == null)
+        {
+          resp.ErrorMessage = "GameId not found";
+          await responseHandler(resp);
+          return;
+        }
+
+        var gameEngine = new GameEngine(_loggerProvider, _dbContext, _cardRepo);
+        gameEngine.GameState = gameState;
+
+        if (gameEngine.GameState.IsFinished)
+        {
+          resp.ErrorMessage = "Game is finished";
+          await responseHandler(resp);
+          return;
+        }
+
+        if (gameEngine.GameState.PlayerId != request.PlayerId)
+        {
+          resp.ErrorMessage = "Only dealer can initiate this request";
+          await responseHandler(resp);
+          return;
+        }
+
+        if (request.RequestType == DealGameRequest.RequestTypes.DealCard)
+        {
+          var (success, err, updatedPlayerStates) = await gameEngine.DealPlayerCards();
+          resp.IsSuccess = success;
+          resp.ErrorMessage = err;
+          await responseHandler(resp);
+
+          if (resp.IsSuccess)
           {
-            InvokeOnPlayerUpdate(MakePlayerUpdateResponse(playerState));
+            foreach (var playerState in updatedPlayerStates)
+            {
+              InvokeOnPlayerUpdate(MakePlayerUpdateResponse(playerState));
+            }
+            InvokeOnGameUpdate(MakeGameUpdateResponse(gameEngine.GameState));
           }
-          InvokeOnGameUpdate(MakeGameUpdateResponse(gameEngine.GameState));
         }
-      }
-      else if (request.RequestType == DealGameRequest.RequestTypes.LockTrading ||
-        request.RequestType == DealGameRequest.RequestTypes.UnlockTrading)
-      {
-        var locked = request.RequestType == DealGameRequest.RequestTypes.LockTrading ? true : false;
-        (resp.IsSuccess, resp.ErrorMessage) = await gameEngine.LockTrading(locked);
-        await responseHandler(resp);
-
-        if (resp.IsSuccess)
+        else if (request.RequestType == DealGameRequest.RequestTypes.LockTrading ||
+          request.RequestType == DealGameRequest.RequestTypes.UnlockTrading)
         {
-          InvokeOnGameUpdate(MakeGameUpdateResponse(gameEngine.GameState));
-        }
-      }
-      else if (request.RequestType == DealGameRequest.RequestTypes.FinishGame)
-      {
-        (resp.IsSuccess, resp.ErrorMessage) = await gameEngine.FinishGame();
-        await responseHandler(resp);
+          var locked = request.RequestType == DealGameRequest.RequestTypes.LockTrading ? true : false;
+          (resp.IsSuccess, resp.ErrorMessage) = await gameEngine.LockTrading(locked);
+          await responseHandler(resp);
 
-        if (resp.IsSuccess)
+          if (resp.IsSuccess)
+          {
+            InvokeOnGameUpdate(MakeGameUpdateResponse(gameEngine.GameState));
+          }
+        }
+        else if (request.RequestType == DealGameRequest.RequestTypes.FinishGame)
         {
-          InvokeOnGameUpdate(MakeGameUpdateResponse(gameEngine.GameState));
+          (resp.IsSuccess, resp.ErrorMessage) = await gameEngine.FinishGame();
+          await responseHandler(resp);
+
+          if (resp.IsSuccess)
+          {
+            InvokeOnGameUpdate(MakeGameUpdateResponse(gameEngine.GameState));
+          }
+        }
+        else
+        {
+          resp.ErrorMessage = "Unknown deal request type";
+          await responseHandler(resp);
         }
       }
-      else
+      finally
       {
-        resp.ErrorMessage = "Unknown deal request type";
-        await responseHandler(resp);
+        ReleaseGameLock(request.GameId, request.RequestId);
       }
     }
 
@@ -249,31 +267,45 @@ namespace MarketMakingGame.Server.Lib
 
       var resp = new UpdateQuoteResponse() { RequestId = request.RequestId };
 
-      var gameState = await _dbContext.GameStates
-        .FirstOrDefaultAsync(x => x.GameId == request.GameId);
-      if (gameState == null)
+      try
       {
-        resp.ErrorMessage = "GameId not found";
+        if (!await AcquireGameLock(request.GameId, request.RequestId, TimeSpan.FromSeconds(30)))
+        {
+          resp.ErrorMessage = "Timed out while acquiring game lock";
+          await responseHandler(resp);
+          return;
+        }
+
+        var gameState = await _dbContext.GameStates
+          .FirstOrDefaultAsync(x => x.GameId == request.GameId);
+        if (gameState == null)
+        {
+          resp.ErrorMessage = "GameId not found";
+          await responseHandler(resp);
+          return;
+        }
+
+        var gameEngine = new GameEngine(_loggerProvider, _dbContext, _cardRepo);
+        gameEngine.GameState = gameState;
+
+        if (gameEngine.GameState.IsFinished)
+        {
+          resp.ErrorMessage = "Game is finished";
+          await responseHandler(resp);
+          return;
+        }
+
+        resp = await gameEngine.UpdateQuote(request);
         await responseHandler(resp);
-        return;
+
+        if (resp.IsSuccess)
+        {
+          InvokeOnGameUpdate(MakeGameUpdateResponse(gameEngine.GameState));
+        }
       }
-
-      var gameEngine = new GameEngine(_loggerProvider, _dbContext, _cardRepo);
-      gameEngine.GameState = gameState;
-
-      if (gameEngine.GameState.IsFinished)
+      finally
       {
-        resp.ErrorMessage = "Game is finished";
-        await responseHandler(resp);
-        return;
-      }
-
-      resp = await gameEngine.UpdateQuote(request);
-      await responseHandler(resp);
-
-      if (resp.IsSuccess)
-      {
-        InvokeOnGameUpdate(MakeGameUpdateResponse(gameEngine.GameState));
+        ReleaseGameLock(request.GameId, request.RequestId);
       }
     }
 
@@ -283,33 +315,47 @@ namespace MarketMakingGame.Server.Lib
 
       var resp = new TradeResponse() { RequestId = request.RequestId };
 
-      var gameState = await _dbContext.GameStates
-        .FirstOrDefaultAsync(x => x.GameId == request.GameId);
-      if (gameState == null)
+      try
       {
-        resp.ErrorMessage = "GameId not found";
+        if (!await AcquireGameLock(request.GameId, request.RequestId, TimeSpan.FromSeconds(30)))
+        {
+          resp.ErrorMessage = "Timed out while acquiring game lock";
+          await responseHandler(resp);
+          return;
+        }
+        
+        var gameState = await _dbContext.GameStates
+          .FirstOrDefaultAsync(x => x.GameId == request.GameId);
+        if (gameState == null)
+        {
+          resp.ErrorMessage = "GameId not found";
+          await responseHandler(resp);
+          return;
+        }
+
+        var gameEngine = new GameEngine(_loggerProvider, _dbContext, _cardRepo);
+        gameEngine.GameState = gameState;
+
+        if (gameEngine.GameState.IsFinished)
+        {
+          resp.ErrorMessage = "Game is finished";
+          await responseHandler(resp);
+          return;
+        }
+
+        List<Models.Trade> trades;
+        (resp.IsSuccess, resp.ErrorMessage, trades) = await gameEngine.Trade(request);
         await responseHandler(resp);
-        return;
+
+        if (resp.IsSuccess)
+        {
+          InvokeOnGameUpdate(MakeGameUpdateResponse(gameEngine.GameState));
+          InvokeOnTradeUpdate(null, MakeTradeUpdateResponse(gameEngine.GameState.GameId, trades));
+        }
       }
-
-      var gameEngine = new GameEngine(_loggerProvider, _dbContext, _cardRepo);
-      gameEngine.GameState = gameState;
-
-      if (gameEngine.GameState.IsFinished)
+      finally
       {
-        resp.ErrorMessage = "Game is finished";
-        await responseHandler(resp);
-        return;
-      }
-
-      List<Models.Trade> trades;
-      (resp.IsSuccess, resp.ErrorMessage, trades) = await gameEngine.Trade(request);
-      await responseHandler(resp);
-
-      if (resp.IsSuccess)
-      {
-        InvokeOnGameUpdate(MakeGameUpdateResponse(gameEngine.GameState));
-        InvokeOnTradeUpdate(null, MakeTradeUpdateResponse(gameEngine.GameState.GameId, trades));
+        ReleaseGameLock(request.GameId, request.RequestId);
       }
     }
 
@@ -423,7 +469,41 @@ namespace MarketMakingGame.Server.Lib
       }
     }
 
-    public async Task<(bool IsSuccess, string ErrorMessage)> DeleteGameIfFinished(string gameId, string requestingPlayerId)
+    public async Task OnPlayerDisconnectedAsync(string gameId, string playerId)
+    {
+      var lockSecret = Guid.NewGuid().ToString();
+      try
+      {
+        if (!await AcquireGameLock(gameId, lockSecret, TimeSpan.FromSeconds(30)))
+        {
+          return;
+        }
+
+        var gameState = await _dbContext.GameStates
+              .FirstOrDefaultAsync(x => x.GameId == gameId);
+        if (gameState != null)
+        {
+          var playerState = gameState.PlayerStates
+            .FirstOrDefault(x => x.PlayerId == playerId);
+          if (playerState != null)
+          {
+            playerState.CurrentAsk = null;
+            playerState.CurrentBid = null;
+            gameState.BestCurrentAsk = gameState.PlayerStates.Select(x => x.CurrentAsk).Min();
+            gameState.BestCurrentBid = gameState.PlayerStates.Select(x => x.CurrentBid).Max();
+            playerState.IsConnected = false;
+            await _dbContext.SaveChangesAsync();
+            InvokeOnGameUpdate(MakeGameUpdateResponse(gameState));
+          }
+        }
+      }
+      finally
+      {
+        ReleaseGameLock(gameId, lockSecret);
+      }
+    }
+
+    private async Task<(bool IsSuccess, string ErrorMessage)> DeleteGameIfFinished(string gameId, string requestingPlayerId)
     {
       var gameState = await _dbContext.GameStates
           .FirstOrDefaultAsync(x => x.GameId == gameId);

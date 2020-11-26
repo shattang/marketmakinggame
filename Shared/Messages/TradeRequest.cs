@@ -12,6 +12,8 @@ namespace MarketMakingGame.Shared.Messages
 
     public bool IsBuy { get; set; }
 
+    public double Price { get; set; }
+
     public override string ToString()
     {
       return this.ToStringWithProperties();

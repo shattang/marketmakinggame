@@ -526,12 +526,17 @@ namespace MarketMakingGame.Client.Lib
         return;
       }
 
+      var price = isBuy ? BestAsk : BestBid;
+      if (!double.IsFinite(price))
+        return;
+
       if (!await JSRuntime.InvokeAsync<bool>("confirm", $"Are you sure you want to Submit Trade?"))
         return;
 
       await GameClient.SendRequestAsync("Trade", new TradeRequest()
       {
         IsBuy = isBuy,
+        Price = price,
         GameId = GameId,
         PlayerId = UserDataEditor.Data.PlayerId
       });
