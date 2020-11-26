@@ -180,6 +180,23 @@ namespace MarketMakingGame.Server.Lib
         return resp;
       }
 
+      var currBestAsk = GameState.PlayerStates
+        .Where(x => x.PlayerStateId != playerState.PlayerStateId).Select(x => x.CurrentAsk).Min();
+      var currBestBid = GameState.PlayerStates
+        .Where(x => x.PlayerStateId != playerState.PlayerStateId).Select(x => x.CurrentBid).Max();
+
+      if (GameState.BestCurrentBid.HasValue && newAsk <= currBestBid)
+      {
+        newAsk = currBestBid + GameState.Game.MinQuoteWidth;
+        resp.Message += $"Ask crossed Best Bid and was limited to {newAsk}. ";
+      }
+
+      if (GameState.BestCurrentAsk.HasValue && newBid >= currBestAsk)
+      {
+        newBid = currBestAsk - GameState.Game.MinQuoteWidth;
+        resp.Message += $"Bid crossed Best Ask and was limited to {newBid}. ";
+      }
+
       var quoteWidth = newAsk.Value - newBid.Value;
       if (quoteWidth > GameState.Game.MaxQuoteWidth)
       {
@@ -191,23 +208,6 @@ namespace MarketMakingGame.Server.Lib
       {
         resp.ErrorMessage = $"Quote width should be less than {GameState.Game.MinQuoteWidth}";
         return resp;
-      }
-
-      var currBestAsk = GameState.PlayerStates
-        .Where(x => x.PlayerStateId != playerState.PlayerStateId).Select(x => x.CurrentAsk).Min();
-      var currBestBid = GameState.PlayerStates
-        .Where(x => x.PlayerStateId != playerState.PlayerStateId).Select(x => x.CurrentBid).Max();
-
-      if (GameState.BestCurrentBid.HasValue && newAsk <= currBestBid)
-      {
-        newAsk = currBestBid + GameState.Game.MinQuoteWidth;
-        resp.Message += $"Ask crossed Best Bid and was floored to {newAsk}. ";
-      }
-
-      if (GameState.BestCurrentAsk.HasValue && newBid >= currBestAsk)
-      {
-        newBid = currBestAsk - GameState.Game.MinQuoteWidth;
-        resp.Message += $"Bid crossed Best Ask and was capped to {newBid}. ";
       }
 
       playerState.CurrentAsk = newAsk;
@@ -292,6 +292,10 @@ namespace MarketMakingGame.Server.Lib
 
       if (targetPlayers.Count == 0)
       {
+        if (initiatorPlayer.CurrentAsk.HasValue || initiatorPlayer.CurrentBid.HasValue)
+        {
+          return (false, $"Cannot Trade. You are the only one on Best {(request.IsBuy ? "Ask" : "Bid")}", null);
+        }
         return (false, "No Players to Trade with", null);
       }
 
@@ -317,6 +321,9 @@ namespace MarketMakingGame.Server.Lib
         var targetSide = request.IsBuy ? -1 : 1;
         targetPlayer.PositionQty = currTargetPosQty + targetTradeQty * targetSide;
         targetPlayer.PositionCashFlow = currTargetPosCashflow + targetTradeQty * tradePrice * targetSide;
+
+        targetPlayer.CurrentAsk = null;
+        targetPlayer.CurrentBid = null;
       }
 
       var initiatorSide = request.IsBuy ? 1 : -1;
@@ -324,6 +331,10 @@ namespace MarketMakingGame.Server.Lib
       var currPosCashflow = initiatorPlayer.PositionCashFlow ?? 0;
       initiatorPlayer.PositionQty = currPosQty + initiatorTradeQty * initiatorSide;
       initiatorPlayer.PositionCashFlow = currPosCashflow + initiatorTradeQty * tradePrice * initiatorSide;
+
+      GameState.BestCurrentAsk = GameState.PlayerStates.Select(x => x.CurrentAsk).Min();
+      GameState.BestCurrentBid = GameState.PlayerStates.Select(x => x.CurrentBid).Max();
+
       await _dbContext.SaveChangesAsync();
 
       return (true, null, trades);

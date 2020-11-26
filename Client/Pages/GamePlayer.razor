@@ -1,5 +1,6 @@
 @page "/playgame/{gameid}"
 @implements IDisposable
+@using System
 @using MarketMakingGame.Client.Lib
 @using MatBlazor
 @inject GamePlayerViewModel GamePlayerViewModel
@@ -7,6 +8,7 @@
 @inject IMatToaster Toaster
 @inject IJSRuntime JSRuntime
 @inject NavigationManager NavigationManager
+
 
 <style>
   .card-image-cls {
@@ -202,8 +204,11 @@
               </MatTooltip>
             }
             &nbsp;
+            
+            @{ var lockIcon = ViewModel.GameUpdateResponse.IsTradingLocked ? "lock": "lock_open"; }
             <MatTooltip Tooltip="Click to lock or unlock trading" Wrap="true">
                 <MatButton Outlined="true" style="height: 100%; text-align: center;"
+                  Icon=@lockIcon
                   OnClick="@(async e => { await ViewModel.SendLockTradingRequest(); })">
                   @ViewModel.LockTradingStatus
                 </MatButton>
@@ -236,15 +241,20 @@
         </div>
         &nbsp;
         <div class="player-actions-panel-cls">
+          @{ var lockIcon1 = ViewModel.GameUpdateResponse.IsTradingLocked ? "lock": ""; }
           <MatTooltip Tooltip="Click to sell" Wrap="true">
-            <MatButton Raised="true" style="background-color: red; color: black; font-size: 50%; height: 100%"
+            <MatButton Raised="true" style="background-color: red; color: black; font-size: 75%; height: 100%"
+              Disabled='@ViewModel.GameUpdateResponse.IsTradingLocked'
+              Icon=@lockIcon1
               OnClick="@(async e => { await ViewModel.SendTradeRequest(false); })">
               Best Bid: @ViewModel.FormatPrice(@ViewModel.BestBid)
             </MatButton>
           </MatTooltip>
           &nbsp;
           <MatTooltip Tooltip="Click to buy" Wrap="true">
-            <MatButton Raised="true" style="background-color: limegreen; color: black; font-size: 50%; height: 100%"
+            <MatButton Raised="true" style="background-color: limegreen; color: black; font-size: 75%; height: 100%"
+              Disabled='@ViewModel.GameUpdateResponse.IsTradingLocked'
+              Icon=@lockIcon1
               OnClick="@(async e => { await ViewModel.SendTradeRequest(true); })">
               Best Ask: @ViewModel.FormatPrice(@ViewModel.BestAsk)
             </MatButton>
@@ -381,6 +391,7 @@
       {
         var toastType = alert.IsError ? MatToastType.Warning : MatToastType.Info;
         Toaster.Add(alert.Message, toastType, alert.Title, icon);
+        System.Console.WriteLine($"{alert.Message} {alert.Title}");
       }
     }
     StateHasChanged();

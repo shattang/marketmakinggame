@@ -109,6 +109,15 @@ namespace MarketMakingGame.Client.Lib
 
     private void HandleUpdateQuoteResponse(UpdateQuoteResponse obj)
     {
+      if (!String.IsNullOrWhiteSpace(obj.Message))
+      {
+        InvokeStateChanged(new GameAlertEventArgs()
+        {
+          Title = "Issues with Update Quote",
+          Message = obj.Message
+        });
+      }
+
       if (!obj.IsSuccess)
       {
         InvokeStateChanged(new GameAlertEventArgs()
@@ -120,29 +129,39 @@ namespace MarketMakingGame.Client.Lib
         });
         return;
       }
-      else if (!String.IsNullOrWhiteSpace(obj.Message))
-      {
-        InvokeStateChanged(new GameAlertEventArgs()
-        {
-          Title = "Issues with Update Quote",
-          Message = obj.Message
-        });
-      }
 
-      this.BidPrice = obj.BidPrice ?? double.NaN;
-      this.AskPrice = obj.AskPrice ?? double.NaN;
+      this.BidPrice = obj.BidPrice ?? this.BidPrice;
+      this.AskPrice = obj.AskPrice ?? this.AskPrice;
     }
 
     private void HandleTradeUpdateResponse(TradeUpdateResponse obj)
     {
+      if (Trades.Count > 0)
+      {
+        if (PlayerUpdateResponse != null && 
+            obj.TradeUpdates.Any(x => x.TargetPlayerPublicId == PlayerUpdateResponse.PlayerPublicId))
+        {
+          InvokeStateChanged(new GameAlertEventArgs()
+          {
+            Message = "Your Quotes were reset because there were Trades against them.",
+            Title = "Please Update your Quotes"
+          });
+        }
+        else
+        {
+          InvokeStateChanged(new GameAlertEventArgs()
+          {
+            Message = string.Empty,
+            Title = "New trades were processed"
+          });
+        }
+      }
+
       foreach (var t in obj.TradeUpdates)
       {
         Trades[t.TradeId] = t;
       }
-      InvokeStateChanged(new GameAlertEventArgs()
-      {
-        Title = "New trades were processed"
-      });
+      InvokeStateChanged(EventArgs.Empty);
     }
 
     private void HandleIsConnectedChanged(bool isConnected)
@@ -161,6 +180,7 @@ namespace MarketMakingGame.Client.Lib
       }
       else
       {
+        Trades.Clear();
         if (IsInitialized)
         {
           InvokeStateChanged(new GameAlertEventArgs()
@@ -507,7 +527,7 @@ namespace MarketMakingGame.Client.Lib
       {
         if (GameUpdateResponse != null)
         {
-          return GameUpdateResponse.IsTradingLocked ? "Trading Locked" : "Trading Allowed";
+          return GameUpdateResponse.IsTradingLocked ? "Unlock Trading" : "Lock Trading";
         }
         return "";
       }
@@ -521,9 +541,6 @@ namespace MarketMakingGame.Client.Lib
       {
         return;
       }
-
-      if (!await JSRuntime.InvokeAsync<bool>("confirm", $"Are you sure you want to {request}?"))
-        return;
 
       await GameClient.SendRequestAsync("DealGame", new DealGameRequest()
       {
