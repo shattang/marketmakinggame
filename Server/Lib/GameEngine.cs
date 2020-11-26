@@ -152,11 +152,14 @@ namespace MarketMakingGame.Server.Lib
       return (true, string.Empty, playersToDeal);
     }
 
-    public async Task<(bool, string)> UpdateQuote(UpdateQuoteRequest request)
+    public async Task<UpdateQuoteResponse> UpdateQuote(UpdateQuoteRequest request)
     {
+      var resp = new UpdateQuoteResponse() { RequestId = request.RequestId, Message = string.Empty };
+
       if (GameState.IsFinished)
       {
-        return (false, "Game is marked finished by Dealer");
+        resp.ErrorMessage = "Game is Finished";
+        return resp;
       }
 
       var playerState = GameState.PlayerStates
@@ -164,7 +167,8 @@ namespace MarketMakingGame.Server.Lib
 
       if (playerState == null)
       {
-        return (false, "PlayerId not found");
+        resp.ErrorMessage = "PlayerId not found";
+        return resp;
       }
 
       var newAsk = request.CurrentAsk ?? playerState.CurrentAsk;
@@ -172,18 +176,21 @@ namespace MarketMakingGame.Server.Lib
 
       if (!(newAsk.HasValue && newBid.HasValue))
       {
-        return (false, "Need to quote both Bid and Ask");
+        resp.ErrorMessage = "Need to quote both Bid and Ask";
+        return resp;
       }
 
       var quoteWidth = newAsk.Value - newBid.Value;
       if (quoteWidth > GameState.Game.MaxQuoteWidth)
       {
-        return (false, $"Quote width should be less than {GameState.Game.MaxQuoteWidth}");
+        resp.ErrorMessage = $"Quote width should be less than {GameState.Game.MaxQuoteWidth}";
+        return resp;
       }
 
       if (quoteWidth < GameState.Game.MinQuoteWidth)
       {
-        return (false, $"Quote width should be less than {GameState.Game.MinQuoteWidth}");
+        resp.ErrorMessage = $"Quote width should be less than {GameState.Game.MinQuoteWidth}";
+        return resp;
       }
 
       var currBestAsk = GameState.PlayerStates
@@ -193,12 +200,14 @@ namespace MarketMakingGame.Server.Lib
 
       if (GameState.BestCurrentBid.HasValue && newAsk <= currBestBid)
       {
-        return (false, "Quote Ask Cannot Cross Best Bid");
+        newAsk = currBestBid + GameState.Game.MinQuoteWidth;
+        resp.Message += $"Ask crossed Best Bid and was floored to {newAsk}. ";
       }
 
       if (GameState.BestCurrentAsk.HasValue && newBid >= currBestAsk)
       {
-        return (false, "Quote Bid Cannot Cross Best Ask");
+        newBid = currBestAsk - GameState.Game.MinQuoteWidth;
+        resp.Message += $"Bid crossed Best Ask and was capped to {newBid}. ";
       }
 
       playerState.CurrentAsk = newAsk;
@@ -208,7 +217,10 @@ namespace MarketMakingGame.Server.Lib
       GameState.BestCurrentBid = GameState.PlayerStates.Select(x => x.CurrentBid).Max();
 
       await _dbContext.SaveChangesAsync();
-      return (true, null);
+      resp.BidPrice = newBid;
+      resp.AskPrice = newAsk;
+      resp.IsSuccess = true;
+      return resp;
     }
 
     public async Task<(bool, string)> LockTrading(bool locked)

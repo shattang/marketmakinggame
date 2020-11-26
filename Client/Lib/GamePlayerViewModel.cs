@@ -118,7 +118,19 @@ namespace MarketMakingGame.Client.Lib
           Title = "Failed to Update Quote",
           Message = $"Error: {obj.ErrorMessage}"
         });
+        return;
       }
+      else if (!String.IsNullOrWhiteSpace(obj.Message))
+      {
+        InvokeStateChanged(new GameAlertEventArgs()
+        {
+          Title = "Issues with Update Quote",
+          Message = obj.Message
+        });
+      }
+
+      this.BidPrice = obj.BidPrice ?? double.NaN;
+      this.AskPrice = obj.AskPrice ?? double.NaN;
     }
 
     private void HandleTradeUpdateResponse(TradeUpdateResponse obj)
@@ -431,6 +443,11 @@ namespace MarketMakingGame.Client.Lib
       if (!CheckIsConnected("UpdateQuote"))
       {
         return;
+      }
+
+      if (!(Double.IsFinite(AskPrice) && Double.IsFinite(BidPrice)))
+      {
+        await JSRuntime.InvokeAsync<object>("alert", $"Are you sure you want to Update Quote?");
       }
 
       if (!await JSRuntime.InvokeAsync<bool>("confirm", $"Are you sure you want to Update Quote?"))

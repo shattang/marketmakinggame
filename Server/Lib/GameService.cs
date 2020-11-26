@@ -268,7 +268,7 @@ namespace MarketMakingGame.Server.Lib
         return;
       }
 
-      (resp.IsSuccess, resp.ErrorMessage) = await gameEngine.UpdateQuote(request);
+      resp = await gameEngine.UpdateQuote(request);
       await responseHandler(resp);
 
       if (resp.IsSuccess)
