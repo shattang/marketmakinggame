@@ -255,11 +255,6 @@ namespace MarketMakingGame.Server.Lib
         return (false, "PlayerId not found", null);
       }
 
-      if (!(initiatorPlayer.CurrentAsk.HasValue && initiatorPlayer.CurrentBid.HasValue))
-      {
-        return (false, "Need to set a Quote in order to Trade", null);
-      }
-
       List<PlayerState> targetPlayers;
       if (request.IsBuy)
       {

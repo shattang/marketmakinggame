@@ -38,12 +38,14 @@ namespace MarketMakingGame.Client.Lib
       public double CurrentPnl { get; set; }
       public double SettlementPnl { get; set; }
       public bool IsConnected { get; set; }
+      public string PlayerCardImageUrl { get; set; }
     }
 
     public class TradeData
     {
-      public string InitiatingPlayerName { get; set; }
-      public string TargetPlayerName { get; set; }
+      public int TradeSequence { get; set; }
+      public string BuyerName { get; set; }
+      public string SellerName { get; set; }
       public double TradeQty { get; set; }
       public double TradePrice { get; set; }
     }
@@ -138,7 +140,7 @@ namespace MarketMakingGame.Client.Lib
     {
       if (Trades.Count > 0)
       {
-        if (PlayerUpdateResponse != null && 
+        if (PlayerUpdateResponse != null &&
             obj.TradeUpdates.Any(x => x.TargetPlayerPublicId == PlayerUpdateResponse.PlayerPublicId))
         {
           InvokeStateChanged(new GameAlertEventArgs()
@@ -195,8 +197,34 @@ namespace MarketMakingGame.Client.Lib
 
     private void HandleGameUpdateResponse(GameUpdateResponse obj)
     {
+      var prev = this.GameUpdateResponse;
       var isUpdated = this.GameUpdateResponse != null;
       this.GameUpdateResponse = obj;
+
+      if (isUpdated)
+      {
+        var alerts = new List<string>();
+        foreach (var item in obj.PlayerPublicStates)
+        {
+          var isConnected = item.IsConnected;
+          var wasConnected = prev.PlayerPublicStates
+            .FirstOrDefault(x => x.PlayerPublicId == item.PlayerPublicId)?.IsConnected ?? false;
+          if (wasConnected != isConnected)
+          {
+            alerts.Add($"Player {item.DisplayName} {(isConnected ? "Connected" : "Disconnected")}");
+          }
+        }
+
+        if (alerts.Count > 0)
+        {
+          InvokeStateChanged(new GameAlertEventArgs()
+          {
+            Message = String.Join(Environment.NewLine, alerts),
+            Title = "Players Alert"
+          });
+        }
+      }
+
       SetInitializedIfReady();
       InvokeStateChanged(EventArgs.Empty);
     }
@@ -273,6 +301,11 @@ namespace MarketMakingGame.Client.Lib
     public string GamePlayerCardImageUrl()
     {
       var cardId = PlayerUpdateResponse.CardId;
+      return GetCardImageUrl(cardId);
+    }
+
+    private string GetCardImageUrl(int cardId)
+    {
       return Cards.Where(x => x.CardId == cardId).DefaultIfEmpty(UnopenedCard).First().CardImageUrl;
     }
 
@@ -359,7 +392,8 @@ namespace MarketMakingGame.Client.Lib
                 ? x.PositionCashFlow.Value / x.PositionQty.Value : double.NaN,
               PositionQty = x.PositionQty.HasValue ? x.PositionQty.Value : 0,
               SettlementPnl = x.SettlementPnl.HasValue ? x.SettlementPnl.Value : double.NaN,
-              IsConnected = x.IsConnected
+              IsConnected = x.IsConnected,
+              PlayerCardImageUrl = GetCardImageUrl(x.SettlementCardId ?? UnopenedCard.CardId)
             };
 
             if (!GameUpdateResponse.IsFinished)
@@ -391,12 +425,15 @@ namespace MarketMakingGame.Client.Lib
         }
 
         var names = GameUpdateResponse.PlayerPublicStates.ToDictionary(x => x.PlayerPublicId, x => x.DisplayName);
-        return Trades.Values.OrderBy(x => x.TradeId).Select(x =>
+        return Trades.Values.OrderBy(x => -x.TradeId).Select((x, i) =>
         {
+          var initiator = names.GetValueOrDefault(x.InitiatorPlayerPublicId) ?? x.InitiatorPlayerPublicId.ToString();
+          var target = names.GetValueOrDefault(x.TargetPlayerPublicId) ?? x.TargetPlayerPublicId.ToString();
           return new TradeData()
           {
-            InitiatingPlayerName = names.GetValueOrDefault(x.InitiatorPlayerPublicId) ?? x.InitiatorPlayerPublicId.ToString(),
-            TargetPlayerName = names.GetValueOrDefault(x.TargetPlayerPublicId) ?? x.TargetPlayerPublicId.ToString(),
+            TradeSequence = Trades.Count - i,
+            BuyerName = x.IsBuy ? initiator : target,
+            SellerName = x.IsBuy ? target : initiator,
             TradePrice = x.TradePrice,
             TradeQty = x.TradeQty
           };
@@ -548,6 +585,16 @@ namespace MarketMakingGame.Client.Lib
         GameId = GameId,
         PlayerId = UserDataEditor.Data.PlayerId
       });
+    }
+
+    public void SetBidAskToJoin()
+    {
+      if (GameUpdateResponse != null)
+      {
+        BidPrice = GameUpdateResponse.BestCurrentBid ?? BidPrice;
+        AskPrice = GameUpdateResponse.BestCurrentAsk ?? AskPrice;
+        InvokeStateChanged(EventArgs.Empty);
+      }
     }
 
     public override void Dispose()

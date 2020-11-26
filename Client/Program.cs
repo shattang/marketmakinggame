@@ -38,7 +38,7 @@ namespace MarketMakingGame.Client
       builder.Services.AddMatToaster(config =>
       {
         config.Position = MatToastPosition.TopCenter;
-        //config.PreventDuplicates = true;
+        config.PreventDuplicates = true;
         config.NewestOnTop = true;
         config.ShowCloseButton = true;
         config.MaximumOpacity = 100;

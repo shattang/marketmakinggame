@@ -82,7 +82,7 @@ namespace MarketMakingGame.Client.Lib
         {
           CreatedGames.Add(response.Game);
           _ = _localStorage.SetItemAsync(CREATED_GAMES_KEY, CreatedGames);
-          ShowGamePlayer(response.Game);
+          _ = ShowGamePlayer(response.Game);
         }
         else
         {
@@ -137,11 +137,12 @@ namespace MarketMakingGame.Client.Lib
     public void OnJoinGameButtonClicked(int index)
     {
       var info = CreatedGames[index];
-      ShowGamePlayer(info);
+      _ = ShowGamePlayer(info);
     }
 
-    internal void ShowGamePlayer(Game game)
+    internal async Task ShowGamePlayer(Game game)
     {
+      await Task.Delay(3000);
       _navManager.NavigateTo($"/playgame/{game.GameId}");
     }
 

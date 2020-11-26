@@ -29,7 +29,7 @@
     width: 80%
   }
   .user-card-group-cls {
-    background-color: darkorange;
+    background-color: purple;
     width: 20%
   }
   .card-content-cls {
@@ -153,9 +153,9 @@
           <div>
           </div>
           <div>
-            <div style="text-align: center; font-size: 75%; font-color: darkgray">
+            <div style="text-align: center; font-size: 75%; color: purple;">
               @ViewModel.CurrentGameStatus
-              <MatButton Style="width: 2px;"></MatButton>
+              <MatButton style="width: 2px;"></MatButton>
             </div>
           </div>
       </div>
@@ -188,7 +188,7 @@
             @if (ViewModel.GameUpdateResponse.AllRoundsFinished)
             {
               <MatTooltip Tooltip="Click to mark game finished and display results" Wrap="true">
-                <MatButton Outlined="true" style="background-color: orange; height: 100%; text-align: center;"
+                <MatButton Outlined="true" style="background-color: magenta; height: 100%; text-align: center;"
                   OnClick="@(async e => { await ViewModel.SendDealRequest(); })">
                   Finish Game
                 </MatButton>
@@ -225,7 +225,12 @@
                                    FieldType="MatNumericUpDownFieldType.Currency"
                                    DecimalPlaces=2>
           </MatNumericUpDownField>
-          &nbsp;
+          <MatTooltip Tooltip="Click to set quotes to join market" Wrap="true">
+            <MatButton
+              Icon="group"
+              OnClick="@(e => { ViewModel.SetBidAskToJoin(); })">
+            </MatButton>
+          </MatTooltip>
           <MatNumericUpDownField Label="Your Ask"
                                    @bind-Value=@ViewModel.AskPrice
                                    FieldType="MatNumericUpDownFieldType.Currency"
@@ -274,7 +279,7 @@
                   <th style="font-size: 75%;">Position Qty</th>
                   <th style="font-size: 75%;">Position Cost</th>
                   <th style="font-size: 75%;">Pnl</th>
-                  <th style="font-size: 75%;">Settlement Pnl</th>
+                  <th style="font-size: 75%;">Settlement</th>
               </MatTableHeader>
               <MatTableRow>
                   <td style="width: 20px">
@@ -311,7 +316,11 @@
                     @ViewModel.FormatPrice(@context.CurrentPnl)
                   </td>
                   <td class="quotes-table-td-cls" style="@ViewModel.PriceStyle(@context.SettlementPnl)">
-                    @ViewModel.FormatPrice(@context.SettlementPnl)
+                    @if (ViewModel.GameUpdateResponse.IsFinished)
+                    {
+                      <img src="@context.PlayerCardImageUrl" width=32 height=64/>
+                      <span>Settlement Pnl: @ViewModel.FormatPrice(@context.SettlementPnl)</span>
+                    }
                   </td>
               </MatTableRow>
           </MatTable>
@@ -319,16 +328,20 @@
         <div class="trades-table-panel-cls">
           <MatTable Items="@ViewModel.TradesData" ShowPaging="true" class="mat-elevation-z1 trades-table-cls">
               <MatTableHeader>
-                  <th style="font-size: 75%;">Trade From</th>
-                  <th style="font-size: 75%;">Trade To</th>
+                  <th style="font-size: 75%;">Sequence</th>
+                  <th style="font-size: 75%;">Buyer</th>
+                  <th style="font-size: 75%;">Seller</th>
                   <th style="font-size: 75%;">Trade Price</th>
                   <th style="font-size: 75%;">Trade Qty</th>
               </MatTableHeader>
               <MatTableRow>
-                  <td class="trades-table-td-cls">@context.InitiatingPlayerName</td>
-                  <td class="trades-table-td-cls">@context.TargetPlayerName</td>
+                  <td class="trades-table-td-cls">@context.TradeSequence</td>
+                  <td class="trades-table-td-cls">@context.BuyerName</td>
+                  <td class="trades-table-td-cls">@context.SellerName</td>
                   <td class="trades-table-td-cls">@ViewModel.FormatPrice(@context.TradePrice)</td>
-                  <td class="trades-table-td-cls">@ViewModel.FormatQty(@context.TradeQty)</td>
+                  <td class="trades-table-td-cls">
+                    @ViewModel.FormatQty(@context.TradeQty)
+                  </td>
               </MatTableRow>
           </MatTable>
         </div>
