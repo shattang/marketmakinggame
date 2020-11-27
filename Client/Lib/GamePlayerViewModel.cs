@@ -504,11 +504,13 @@ namespace MarketMakingGame.Client.Lib
 
       if (!(Double.IsFinite(AskPrice) && Double.IsFinite(BidPrice)))
       {
-        await JSRuntime.InvokeAsync<object>("alert", $"Are you sure you want to Update Quote?");
+        return;
       }
 
-      if (!await JSRuntime.InvokeAsync<bool>("confirm", $"Are you sure you want to Update Quote?"))
-        return;
+      if (AskPrice <= BestBid || BidPrice >= BestAsk)
+      {
+        await JSRuntime.InvokeAsync<object>("alert", $"Are you sure you want to Update Quote?");
+      }
 
       await GameClient.SendRequestAsync("UpdateQuote", new UpdateQuoteRequest()
       {
