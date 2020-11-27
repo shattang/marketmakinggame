@@ -295,12 +295,13 @@ namespace MarketMakingGame.Server.Lib
           return;
         }
 
-        resp = await gameEngine.UpdateQuote(request);
-        await responseHandler(resp);
+        var (engineResp, trades) = await gameEngine.UpdateQuote(request);
+        await responseHandler(engineResp);
 
-        if (resp.IsSuccess)
+        if (engineResp.IsSuccess)
         {
           InvokeOnGameUpdate(MakeGameUpdateResponse(gameEngine.GameState));
+          InvokeOnTradeUpdate(null, MakeTradeUpdateResponse(gameEngine.GameState.GameId, trades));
         }
       }
       finally
@@ -323,7 +324,7 @@ namespace MarketMakingGame.Server.Lib
           await responseHandler(resp);
           return;
         }
-        
+
         var gameState = await _dbContext.GameStates
           .FirstOrDefaultAsync(x => x.GameId == request.GameId);
         if (gameState == null)

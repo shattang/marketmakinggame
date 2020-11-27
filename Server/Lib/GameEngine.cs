@@ -155,20 +155,8 @@ namespace MarketMakingGame.Server.Lib
 
     private void UpdateBestBidAndAsk()
     {
-      UpdateBestAsk();
-      UpdateBestBid();
-    }
-
-    private double? UpdateBestBid()
-    {
-      GameState.BestCurrentBid = GameState.PlayerStates.Select(x => x.CurrentBid).Max();
-      return GameState.BestCurrentBid;
-    }
-
-    private double? UpdateBestAsk()
-    {
       GameState.BestCurrentAsk = GameState.PlayerStates.Select(x => x.CurrentAsk).Min();
-      return GameState.BestCurrentAsk;
+      GameState.BestCurrentBid = GameState.PlayerStates.Select(x => x.CurrentBid).Max();
     }
 
     public async Task<(UpdateQuoteResponse, List<Trade>)> UpdateQuote(UpdateQuoteRequest request)
@@ -191,57 +179,111 @@ namespace MarketMakingGame.Server.Lib
         return (resp, trades);
       }
 
-      var newAsk = request.CurrentAsk ?? playerState.CurrentAsk;
-      var newBid = request.CurrentBid ?? playerState.CurrentBid;
+      var currentAsk = playerState.CurrentAsk;
+      var currentBid = playerState.CurrentBid;
+      var newAsk = request.CurrentAsk ?? currentAsk;
+      var newBid = request.CurrentBid ?? currentBid;
+
       if (!(newAsk.HasValue && newBid.HasValue))
       {
         resp.ErrorMessage = "Need to quote both Bid and Ask";
         return (resp, trades);
       }
 
-      playerState.CurrentAsk = null;
-      playerState.CurrentBid = null;
-
-      UpdateBestBidAndAsk();
-
-      var tradeReq = new TradeRequest() { RequestId = request.RequestId, GameId = request.GameId, PlayerId = request.PlayerId };
-      while (GameState.BestCurrentBid.HasValue && newAsk <= GameState.BestCurrentBid)
-      {
-        tradeReq.IsBuy = false;
-        tradeReq.Price = GameState.BestCurrentBid.Value;
-        TradeInternal(tradeReq);
-      }
-
-      if (GameState.BestCurrentAsk.HasValue && newBid >= bestAskExcludeSelf)
-      {
-        newBid = bestAskExcludeSelf - GameState.Game.MinQuoteWidth;
-        resp.Message += $"Bid crossed Best Ask and was limited to {newBid}. ";
-      }
-
       var quoteWidth = newAsk.Value - newBid.Value;
       if (quoteWidth > GameState.Game.MaxQuoteWidth)
       {
         resp.ErrorMessage = $"Quote width should be less than {GameState.Game.MaxQuoteWidth}";
-        return resp;
+        return (resp, trades);
       }
 
       if (quoteWidth < GameState.Game.MinQuoteWidth)
       {
         resp.ErrorMessage = $"Quote width should be less than {GameState.Game.MinQuoteWidth}";
-        return resp;
+        return (resp, trades);
+      }
+
+      if (GameState.IsTradingLocked)
+      {
+        var otherPlayers = GameState.PlayerStates.Where(x => x.PlayerStateId != playerState.PlayerStateId);
+        var bestBidOthers = otherPlayers.Select(x => x.CurrentBid).Max();
+        if (bestBidOthers.HasValue && newAsk <= bestBidOthers)
+        {
+          resp.ErrorMessage = "Trading is currently disabled and New Ask will cross Current Bid";
+          return (resp, trades);
+        }
+
+        var bestAskOthers = otherPlayers.Select(x => x.CurrentAsk).Min();
+        if (bestAskOthers.HasValue && newBid >= bestAskOthers)
+        {
+          resp.ErrorMessage = "Trading is currently disabled and New Bid will cross Current Ask";
+          return (resp, trades);
+        }
+      }
+
+      playerState.CurrentAsk = null;
+      playerState.CurrentBid = null;
+      UpdateBestBidAndAsk();
+
+      while (GameState.BestCurrentBid.HasValue && newAsk <= GameState.BestCurrentBid)
+      {
+        var tradeReq = new TradeRequest()
+        {
+          RequestId = request.RequestId,
+          GameId = request.GameId,
+          PlayerId = request.PlayerId,
+          IsBuy = false,
+          Price = GameState.BestCurrentBid.Value
+        };
+
+        var tradeResp = TradeInternal(tradeReq);
+        if (!tradeResp.IsSuccess)
+        {
+          playerState.CurrentAsk = currentAsk;
+          playerState.CurrentBid = currentBid;
+          resp.ErrorMessage = tradeResp.ErrorMessage;
+          return (resp, trades);
+        }
+        else 
+        {
+          trades.AddRange(tradeResp.Trades);
+        }
+      }
+
+      while (GameState.BestCurrentAsk.HasValue && newBid >= GameState.BestCurrentAsk)
+      {
+        var tradeReq = new TradeRequest()
+        {
+          RequestId = request.RequestId,
+          GameId = request.GameId,
+          PlayerId = request.PlayerId,
+          IsBuy = true,
+          Price = GameState.BestCurrentAsk.Value
+        };
+
+        var tradeResp = TradeInternal(tradeReq);
+        if (!tradeResp.IsSuccess)
+        {
+          playerState.CurrentAsk = currentAsk;
+          playerState.CurrentBid = currentBid;
+          resp.ErrorMessage = tradeResp.ErrorMessage;
+          return (resp, trades);
+        }
+        else 
+        {
+          trades.AddRange(tradeResp.Trades);
+        }
       }
 
       playerState.CurrentAsk = newAsk;
       playerState.CurrentBid = newBid;
-
-      GameState.BestCurrentAsk = GameState.PlayerStates.Select(x => x.CurrentAsk).Min();
-      GameState.BestCurrentBid = GameState.PlayerStates.Select(x => x.CurrentBid).Max();
+      UpdateBestBidAndAsk();
 
       await _dbContext.SaveChangesAsync();
       resp.BidPrice = newBid;
       resp.AskPrice = newAsk;
       resp.IsSuccess = true;
-      return resp;
+      return (resp, trades);
     }
 
     public async Task<(bool, string, List<Trade>)> Trade(TradeRequest request)
@@ -263,7 +305,7 @@ namespace MarketMakingGame.Server.Lib
 
       if (GameState.IsTradingLocked)
       {
-        return (false, "Trading is currently locked by Dealer", null);
+        return (false, "Trading is currently disabled", null);
       }
 
       var initiatorPlayer = GameState.PlayerStates
@@ -347,6 +389,7 @@ namespace MarketMakingGame.Server.Lib
 
         targetPlayer.CurrentAsk = null;
         targetPlayer.CurrentBid = null;
+        UpdateBestBidAndAsk();
       }
 
       var initiatorSide = request.IsBuy ? 1 : -1;
@@ -355,7 +398,6 @@ namespace MarketMakingGame.Server.Lib
       initiatorPlayer.PositionQty = currPosQty + initiatorTradeQty * initiatorSide;
       initiatorPlayer.PositionCashFlow = currPosCashflow + initiatorTradeQty * tradePrice * initiatorSide;
 
-      UpdateBestBidAndAsk();
       return (true, null, trades);
     }
 
