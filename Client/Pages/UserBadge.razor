@@ -1,0 +1,58 @@
+@implements IDisposable
+@using Lib
+@using System
+@inject UserDataEditorViewModel UserDataEditorViewModel
+
+<MatDialog @bind-IsOpen="@ViewModel.IsUserDataEditorOpen" CanBeClosed="false">
+  <MatDialogTitle>Select Avatar</MatDialogTitle>
+  <MatDialogContent>
+    <UserDataEditor />
+  </MatDialogContent>
+  <MatDialogActions>
+    <MatButton OnClick="@OnUserDataEditorDialogClickOk">OK</MatButton>
+  </MatDialogActions>
+</MatDialog>
+
+<MatButton OnClick="@OpenUserDataEditorDialog">
+  <img src="@ViewModel.AvatarUrl" width=32 height=32 />
+  @ViewModel.Data.DisplayName
+</MatButton>
+
+@code
+{
+  public UserDataEditorViewModel ViewModel => UserDataEditorViewModel;
+
+  protected override async Task OnInitializedAsync()
+  {
+    ViewModel.StateChanged += OnUserDataViewModelChanged;
+    await ViewModel.InitViewModelAsync();
+  }
+
+  void OnUserDataViewModelChanged(EventArgs e)
+  {
+    StateHasChanged();
+  }
+
+  void OpenUserDataEditorDialog()
+  {
+    ViewModel.IsUserDataEditorOpen = true;
+  }
+
+  void OnUserDataEditorDialogClickOk()
+  {
+    var res = ViewModel.CheckValid();
+    if (!res.Success)
+    {
+      System.Console.WriteLine(res.ErrorMessages);
+      System.Console.WriteLine(ViewModel.Data);
+      return;
+    }
+    ViewModel.SaveUserData();
+    ViewModel.IsUserDataEditorOpen = false;
+  }
+
+  public void Dispose()
+  {
+    ViewModel.StateChanged -= OnUserDataViewModelChanged;
+  }
+}

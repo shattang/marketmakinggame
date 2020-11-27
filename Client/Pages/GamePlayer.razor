@@ -1,0 +1,423 @@
+@page "/playgame/{gameid}"
+@implements IDisposable
+@using System
+@using MarketMakingGame.Client.Lib
+@using MatBlazor
+@inject GamePlayerViewModel GamePlayerViewModel
+@inject UserDataEditorViewModel UserDataEditorViewModel
+@inject IMatToaster Toaster
+@inject IJSRuntime JSRuntime
+@inject NavigationManager NavigationManager
+
+
+<style>
+  .card-image-cls {
+    width: 100%;
+    height: 128px;
+    max-width: 100%;
+    max-height: 100%;
+  }
+  .card-group-cls {
+    display: flex;
+    flex-flow: row;
+    width: 100%;
+    height: 100%;
+    border-radius: 10px
+  }
+  .community-card-group-cls {
+    background-color: darkgreen;
+    width: 80%
+  }
+  .user-card-group-cls {
+    background-color: purple;
+    width: 20%
+  }
+  .card-content-cls {
+    height: 100%;
+    margin: 5px;
+    text-align: center;
+  }
+  .card-panel-cls {
+    gap: 30px;
+  }
+  .dealer-actions-panel-cls {
+    padding: 5px;
+    border-style: dotted; 
+    border-width: thin;
+    border-color: lightgray; 
+    border-radius: 10px;
+    overflow: scroll;
+  }
+  .player-actions-panel-cls {
+    display: flex;
+    flex-flow: row;
+    padding: 10px;
+    border-style: dotted; 
+    border-width: thin;
+    border-color: lightgray; 
+    border-radius: 10px;
+    overflow: scroll;
+  }
+  .game-info-cls {
+    border-style: solid; 
+    border-color: lightgray; 
+    border-radius: 10px; 
+    border-width: thin; 
+    padding: 3px; 
+    background-color: #f5f5f5;
+    text-align: center;
+    display: flex;
+    justify-content: space-between;
+  }
+  .player-tables-panel-cls: {
+    display: flex;
+    flex-flow: row;
+    width: 100%;
+    height: 100%;
+  }
+  .quotes-table-panel-cls: {
+    width: 50%
+  }
+  .trades-table-panel-cls: {
+    width: 50%
+  }
+  .quotes-table-cls {
+    table-layout: fixed ;
+    width: 100% ;
+    border-radius: 10px;
+  }
+  .quotes-table-td-cls {
+    width: 10% ;
+    font-size: 75%;
+  }
+  .trades-table-cls {
+    table-layout: fixed ;
+    width: 100% ;
+    border-radius: 10px;
+  }
+  .trades-table-td-cls {
+    width: 10% ;
+    font-size: 75%;
+  }
+</style>
+
+<MatDialog @bind-IsOpen="@IsAlertDialogVisible">
+  <MatDialogTitle>
+    <MatIcon Icon="@AlertDialogIcon"></MatIcon>&nbsp;@AlertDialogTitle
+  </MatDialogTitle>
+  <MatDialogContent>
+    <p>@AlertDialogMessage</p>
+  </MatDialogContent>
+  <MatDialogActions>
+    <MatButton OnClick="@(e => { IsAlertDialogVisible = false; })">Close</MatButton>
+  </MatDialogActions>
+</MatDialog>
+
+@code {
+  bool IsAlertDialogVisible { get; set; }
+
+  string AlertDialogIcon { get; set; } = string.Empty;
+
+  string AlertDialogMessage { get; set; } = string.Empty;
+
+  string AlertDialogTitle { get; set; } = string.Empty;
+
+  void ShowAlertDialog(string title, string message, string icon = "notification_important")
+  {
+    IsAlertDialogVisible = true;
+    AlertDialogIcon = icon;
+    AlertDialogTitle = title;
+    AlertDialogMessage = message;
+  }
+}
+
+<div>
+
+  <AppTopBar />
+
+  <p></p>
+  <MatDivider />
+  <p></p>
+
+  @if (ViewModel.IsInitialized)
+  {
+    @if (ViewModel.JoinGameResponse.IsSuccess)
+    {
+      <div class="mat-elevation-z1 game-info-cls">
+          <div style="font-color: darkgray">
+            Playing Game: @ViewModel.JoinGameResponse.Game.GameName
+            <MatTooltip Tooltip="Click to share link to this Game" Wrap="true">
+              <MatButton style="text-align: center;" Icon="share" OnClick="@CopyUrlToClipboard"></MatButton>
+            </MatTooltip>
+          </div>
+          <div>
+          </div>
+          <div>
+            <div style="text-align: center; font-size: 75%; color: purple;">
+              @ViewModel.CurrentGameStatus
+              <MatButton style="width: 2px;"></MatButton>
+            </div>
+          </div>
+      </div>
+
+      <p/>
+      <div class="card-group-cls card-panel-cls">
+          <div class="column card-group-cls user-card-group-cls mat-elevation-z5">
+            <div class="card-content-cls">
+              <MatTooltip Tooltip="Your private card" Wrap="true">
+                <img class="card-image-cls" src="@ViewModel.GamePlayerCardImageUrl()"/>
+              </MatTooltip>
+            </div>
+          </div>
+          
+          <div class="column card-group-cls community-card-group-cls mat-elevation-z5">
+            @for (var i = 0; i < ViewModel.JoinGameResponse.Game.NumberOfRounds; ++i)
+            {
+              <div class="card-content-cls">
+                <img class="card-image-cls" src="@ViewModel.GetCommunityCardImageUrl(i)"/>
+              </div>
+            }
+          </div>
+      </div>
+
+      @if (ViewModel.PlayerUpdateResponse.IsDealer)
+      {
+        <p/>
+        <div class="mat-elevation-z0 dealer-actions-panel-cls" >
+          <div>
+            @if (ViewModel.GameUpdateResponse.AllRoundsFinished)
+            {
+              <MatTooltip Tooltip="Click to mark game finished and display results" Wrap="true">
+                <MatButton Outlined="true" style="background-color: magenta; height: 100%; text-align: center;"
+                  OnClick="@(async e => { await ViewModel.SendDealRequest(); })">
+                  Finish Game
+                </MatButton>
+              </MatTooltip>
+            }
+            else
+            {
+              <MatTooltip Tooltip="Click to deal next card" Wrap="true">
+                <MatButton Outlined="true" style="height: 100%; text-align: center;"
+                  OnClick="@(async e => { await ViewModel.SendDealRequest(); })">
+                  Deal Card
+                </MatButton>
+              </MatTooltip>
+            }
+            &nbsp;
+            
+            @{ var lockIcon = ViewModel.GameUpdateResponse.IsTradingLocked ? "lock": "lock_open"; }
+            <MatTooltip Tooltip="Click to lock or unlock trading" Wrap="true">
+                <MatButton Outlined="true" style="height: 100%; text-align: center;"
+                  Icon=@lockIcon
+                  OnClick="@(async e => { await ViewModel.SendLockTradingRequest(); })">
+                  @ViewModel.LockTradingStatus
+                </MatButton>
+              </MatTooltip>
+          </div>
+        </div>
+      }
+
+      <p/>
+      <div class="mat-elevation-z0 player-actions-panel-cls">
+        <div class="player-actions-panel-cls">
+          <MatNumericUpDownField Label="Your Bid"
+                                   @bind-Value=@ViewModel.BidPrice
+                                   FieldType="MatNumericUpDownFieldType.Currency"
+                                   DecimalPlaces=2>
+          </MatNumericUpDownField>
+          <MatTooltip Tooltip="Click to set quotes to join market" Wrap="true">
+            <MatButton
+              Icon="group"
+              OnClick="@(e => { ViewModel.SetBidAskToJoin(); })">
+            </MatButton>
+          </MatTooltip>
+          <MatNumericUpDownField Label="Your Ask"
+                                   @bind-Value=@ViewModel.AskPrice
+                                   FieldType="MatNumericUpDownFieldType.Currency"
+                                   DecimalPlaces=2>
+          </MatNumericUpDownField>
+          &nbsp;
+          <MatTooltip Tooltip="Click to update quote" Wrap="true">
+            <MatButton Outlined="true" style="font-size: 75%; height: 100%"
+              OnClick="@(async e => { await ViewModel.SendUpdateQuoteRequest(); })">
+              Update!
+            </MatButton>
+          </MatTooltip>
+        </div>
+        &nbsp;
+        <div class="player-actions-panel-cls">
+          @{ var lockIcon1 = ViewModel.GameUpdateResponse.IsTradingLocked ? "lock": ""; }
+          <MatTooltip Tooltip="Click to sell" Wrap="true">
+            <MatButton Raised="true" style="background-color: red; color: black; font-size: 75%; height: 100%"
+              Disabled='@ViewModel.GameUpdateResponse.IsTradingLocked'
+              Icon=@lockIcon1
+              OnClick="@(async e => { await ViewModel.SendTradeRequest(false); })">
+              Best Bid: @ViewModel.FormatPrice(@ViewModel.BestBid)
+            </MatButton>
+          </MatTooltip>
+          &nbsp;
+          <MatTooltip Tooltip="Click to buy" Wrap="true">
+            <MatButton Raised="true" style="background-color: limegreen; color: black; font-size: 75%; height: 100%"
+              Disabled='@ViewModel.GameUpdateResponse.IsTradingLocked'
+              Icon=@lockIcon1
+              OnClick="@(async e => { await ViewModel.SendTradeRequest(true); })">
+              Best Ask: @ViewModel.FormatPrice(@ViewModel.BestAsk)
+            </MatButton>
+          </MatTooltip>
+        </div>
+      </div>
+
+      <p/>
+      <div class="player-tables-panel-cls">
+        <div class="quotes-table-panel-cls">
+          <MatTable Items="@ViewModel.PlayersData" ShowPaging="false" class="mat-elevation-z1 quotes-table-cls">
+              <MatTableHeader>
+                  <th>&nbsp;</th>
+                  <th style="font-size: 75%;">Player</th>
+                  <th style="font-size: 75%;">Bid Price</th>
+                  <th style="font-size: 75%;">Ask Price</th>
+                  <th style="font-size: 75%;">Position Qty</th>
+                  <th style="font-size: 75%;">Position Cost</th>
+                  <th style="font-size: 75%;">Pnl</th>
+                  <th style="font-size: 75%;">Settlement</th>
+              </MatTableHeader>
+              <MatTableRow>
+                  <td style="width: 20px">
+                    @if (context.IsConnected)
+                    {
+                      <MatTooltip Tooltip="Player is connected" Wrap="true" Context="tmpContext">
+                      <img src="images/green.svg" width=16 height=16/>
+                      </MatTooltip>
+                    }
+                    else
+                    {
+                      <MatTooltip Tooltip="Player is not connected" Wrap="true" Context="tmpContext">
+                      <img src="images/gray.svg" width=16 height=16/>
+                      </MatTooltip>
+                    }
+                  </td>
+                  <td class="quotes-table-td-cls">
+                    <img src="@context.PlayerImageUrl" width=16 height=16/>
+                    @context.PlayerName
+                  </td>
+                  <td class="quotes-table-td-cls" style="@ViewModel.PriceStyle(@context.Bid)">
+                    @ViewModel.FormatPrice(@context.Bid)
+                  </td>
+                  <td class="quotes-table-td-cls" style="@ViewModel.PriceStyle(@context.Offer)">
+                    @ViewModel.FormatPrice(@context.Offer)
+                  </td>
+                  <td class="quotes-table-td-cls">
+                    @ViewModel.FormatQty(@context.PositionQty)
+                  </td>
+                  <td class="quotes-table-td-cls" style="@ViewModel.PriceStyle(@context.PositionPrice)">
+                    @ViewModel.FormatPrice(@context.PositionPrice)
+                  </td>
+                  <td class="quotes-table-td-cls" style="@ViewModel.PriceStyle(@context.CurrentPnl)">
+                    @ViewModel.FormatPrice(@context.CurrentPnl)
+                  </td>
+                  <td class="quotes-table-td-cls" style="@ViewModel.PriceStyle(@context.SettlementPnl)">
+                    @if (ViewModel.GameUpdateResponse.IsFinished)
+                    {
+                      <img src="@context.PlayerCardImageUrl" width=32 height=64/>
+                      <span>Settlement Pnl: @ViewModel.FormatPrice(@context.SettlementPnl)</span>
+                    }
+                  </td>
+              </MatTableRow>
+          </MatTable>
+        </div>
+        <div class="trades-table-panel-cls">
+          <MatTable Items="@ViewModel.TradesData" ShowPaging="true" class="mat-elevation-z1 trades-table-cls">
+              <MatTableHeader>
+                  <th style="font-size: 75%;">Sequence</th>
+                  <th style="font-size: 75%;">Buyer</th>
+                  <th style="font-size: 75%;">Seller</th>
+                  <th style="font-size: 75%;">Trade Price</th>
+                  <th style="font-size: 75%;">Trade Qty</th>
+              </MatTableHeader>
+              <MatTableRow>
+                  <td class="trades-table-td-cls">@context.TradeSequence</td>
+                  <td class="trades-table-td-cls">@context.BuyerName</td>
+                  <td class="trades-table-td-cls">@context.SellerName</td>
+                  <td class="trades-table-td-cls">@ViewModel.FormatPrice(@context.TradePrice)</td>
+                  <td class="trades-table-td-cls">
+                    @ViewModel.FormatQty(@context.TradeQty)
+                  </td>
+              </MatTableRow>
+          </MatTable>
+        </div>
+      </div>
+    }
+    else 
+    {
+      <h1>Error</h1>
+      <p>@ViewModel.JoinGameResponse.ErrorMessage</p>
+    }
+  }
+  else if (ViewModel.JoinGameResponse?.IsSuccess == false)
+  {
+    <h1>Error</h1>
+    <p>@ViewModel.JoinGameResponse.ErrorMessage</p>
+  }
+  else
+  {
+    <p>Joining Game @GameId ...</p>
+  }
+
+</div>
+
+@code {
+
+  [Parameter]
+  public string GameId { get; set; }
+
+  public GamePlayerViewModel ViewModel => GamePlayerViewModel;
+
+  protected override async Task OnInitializedAsync()
+  {
+    await UserDataEditorViewModel.InitViewModelAsync();
+    if (!UserDataEditorViewModel.CheckValid().Success)
+    {
+      UserDataEditorViewModel.IsUserDataEditorOpen = true;
+
+      while(!UserDataEditorViewModel.CheckValid().Success)
+      {
+        await Task.Delay(200);
+      }
+    }
+
+    ViewModel.GameId = GameId;
+    ViewModel.StateChanged += OnViewModelChanged;
+    await ViewModel.InitViewModelAsync();
+  }
+
+  void OnViewModelChanged(EventArgs e)
+  {
+    if (e is GamePlayerViewModel.GameAlertEventArgs)
+    {
+      var alert = (GamePlayerViewModel.GameAlertEventArgs)e;
+      var icon = alert.IsError ? "error" : "notification_important";
+      if (alert.IsModal)
+      {
+        ShowAlertDialog(alert.Title, alert.Message, icon);
+      }
+      else
+      {
+        var toastType = alert.IsError ? MatToastType.Warning : MatToastType.Info;
+        Toaster.Add(alert.Message, toastType, alert.Title, icon);
+        System.Console.WriteLine($"{alert.Message} {alert.Title}");
+      }
+    }
+    StateHasChanged();
+  }
+
+  async Task CopyUrlToClipboard()
+  {
+    await JSRuntime.InvokeVoidAsync("navigator.clipboard.writeText", NavigationManager.Uri);
+    ShowAlertDialog("Copied", "Url copied to clipboard", "assignment");
+  }
+
+  public void Dispose()
+  {
+    ViewModel.StateChanged -= OnViewModelChanged;
+  }
+}

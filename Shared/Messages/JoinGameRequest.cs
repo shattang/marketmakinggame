@@ -1,18 +1,18 @@
 using System;
+using MarketMakingGame.Shared.Lib;
+using MarketMakingGame.Shared.Models;
 
 namespace MarketMakingGame.Shared.Messages
 {
   public sealed class JoinGameRequest : BaseRequest
   {
-    public override string RequestName => "JoinGame";
-
-    public string UserName { get; set; }
+    public Player Player { get; set; }
 
     public string GameId { get; set; }
 
     public override string ToString()
     {
-      return $"(UserName={UserName}, GameId={GameId}, " + base.ToString() + ")";
+      return this.ToStringWithProperties();
     }
   }
 }

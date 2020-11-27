@@ -1,0 +1,140 @@
+@page "/console"
+@implements IDisposable
+@using Lib
+@using MarketMakingGame.Shared.Messages
+@using MarketMakingGame.Shared.Models
+@inject UserDataEditorViewModel UserDataEditorViewModel
+@inject GameClient GameClient
+
+<header style="top: 0; left: 0; z-index: 9999; position: sticky;">
+<div style="background-color: darkgrey;">
+<div class="form-group">
+  <label>
+    Mesage:
+    <input @bind="messageInput" />
+  </label>
+</div>
+<button @onclick="SendCreateGameRequest" disabled="@(!IsConnected)">Create Game</button>
+<button @onclick="SendJoinGameRequest" disabled="@(!IsConnected)">Join Game</button>
+<button @onclick="SendDealCardRequest" disabled="@(!IsConnected)">Deal Card</button>
+<button @onclick="SendFinishGameRequest" disabled="@(!IsConnected)">Finish Game</button>
+<button @onclick="SendDeleteGameRequest" disabled="@(!IsConnected)">Delete Game</button>
+
+<hr>
+</div>
+</header>
+
+<ul id="messagesList" style="max-height: 500px; overflow: auto; background-color: lightblue;">
+  @foreach (var message in messages.AsEnumerable().Reverse())
+  { 
+    <li>
+      <div style="background-color: aliceblue;">
+        @message
+      </div>
+    </li> 
+  }
+</ul>
+
+
+
+@code
+{
+  private List<string> messages = new List<string>();
+  private string messageInput;
+
+  protected override async Task OnInitializedAsync()
+  {
+    await UserDataEditorViewModel.InitViewModelAsync();
+    GameClient.OnIsConnectedChanged += OnIsConnectedChanged;
+    GameClient.OnCreateGameResponse += OnGameResponse;
+    GameClient.OnJoinGameResponse += OnGameResponse;
+    GameClient.OnDealGameResponse += OnGameResponse;
+    GameClient.OnGameUpdateResponse += OnGameResponse;
+    GameClient.OnPlayerUpdateResponse += OnGameResponse;
+    GameClient.OnTradeResponse += OnGameResponse;
+    GameClient.OnUpdateQuoteResponse += OnGameResponse;
+    await GameClient.InitViewModelAsync();
+  }
+
+  void OnIsConnectedChanged(bool isConnected)
+  {
+    StateHasChanged();
+  }
+
+  void OnGameResponse(BaseResponse message)
+  {
+    AddToMessageList(message);
+  }
+
+  void AddToMessageList<T>(T message)
+  {
+    messages.Add($"{message}");
+    StateHasChanged();
+  }
+
+  Task SendCreateGameRequest()
+  {
+    var message = new CreateGameRequest()
+    {
+      Player = new Player() 
+      { 
+        DisplayName = UserDataEditorViewModel.Data.DisplayName, 
+        PlayerId = UserDataEditorViewModel.Data.PlayerId,
+        AvatarSeed = UserDataEditorViewModel.Data.AvatarSeed
+      },
+      Game = new Game()
+      {
+        GameName = messageInput
+      }
+    };
+    return GameClient.SendRequestAsync("CreateGame", message);
+  }
+
+  Task SendJoinGameRequest()
+  {
+    var message = new JoinGameRequest()
+    {
+      Player = UserDataEditorViewModel.Data,
+      GameId = messageInput
+    };
+    return GameClient.SendRequestAsync("JoinGame", message);
+  }
+
+  Task SendDealCardRequest()
+  {
+    return SendDealGameRequest(DealGameRequest.RequestTypes.DealCard);
+  }
+
+  Task SendFinishGameRequest()
+  {
+    return SendDealGameRequest(DealGameRequest.RequestTypes.FinishGame);
+  }
+
+  Task SendDeleteGameRequest()
+  {
+    return SendDealGameRequest(DealGameRequest.RequestTypes.DeleteGame);
+  }
+
+  Task SendDealGameRequest(DealGameRequest.RequestTypes reqType) 
+  {
+    return GameClient.SendRequestAsync("DealGame", new DealGameRequest() {
+      PlayerId = UserDataEditorViewModel.Data.PlayerId,
+      GameId = messageInput,
+      RequestType = reqType
+    });
+  }
+
+  public bool IsConnected => GameClient.IsConnected;
+
+  public void Dispose()
+  {
+    GameClient.OnIsConnectedChanged -= OnIsConnectedChanged;
+    GameClient.OnCreateGameResponse -= OnGameResponse;
+    GameClient.OnJoinGameResponse -= OnGameResponse;
+    GameClient.OnDealGameResponse -= OnGameResponse;
+    GameClient.OnGameUpdateResponse -= OnGameResponse;
+    GameClient.OnPlayerUpdateResponse -= OnGameResponse;
+    GameClient.OnTradeResponse -= OnGameResponse;
+    GameClient.OnUpdateQuoteResponse -= OnGameResponse;
+  }
+}
