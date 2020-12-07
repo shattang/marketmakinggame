@@ -15,7 +15,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace MarketMakingGame.Server.Lib
 {
-  public class DeleteGamesScheduledService: IHostedService, IDisposable
+  public class DeleteGamesScheduledService : IHostedService, IDisposable
   {
     private IHost _host;
     private ILogger _logger;
@@ -47,13 +47,15 @@ namespace MarketMakingGame.Server.Lib
           await dbContext.SaveChangesAsync();
         }
       }
-      _logger.LogInformation($"Deleted Finished Games: {String.Join(",", deletedIds)}");
+
+      if (deletedIds.Count > 0)
+        _logger.LogInformation($"Deleted Finished Games: {String.Join(",", deletedIds)}");
     }
 
     public Task StartAsync(CancellationToken cancellationToken)
     {
       _logger.LogInformation("Started {}", nameof(DeleteGamesScheduledService));
-      _timer = new Timer(OnTimer, null, TimeSpan.FromSeconds(0), TimeSpan.FromMinutes(1));
+      _timer = new Timer(OnTimer, null, TimeSpan.FromSeconds(0), TimeSpan.FromMinutes(10));
       return Task.CompletedTask;
     }
 

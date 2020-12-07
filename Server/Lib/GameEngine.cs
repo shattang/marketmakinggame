@@ -170,17 +170,17 @@ namespace MarketMakingGame.Server.Lib
         return (resp, trades);
       }
 
-      var playerState = GameState.PlayerStates
+      var initiatorPlayer = GameState.PlayerStates
         .FirstOrDefault(x => x.PlayerId == request.PlayerId);
 
-      if (playerState == null)
+      if (initiatorPlayer == null)
       {
         resp.ErrorMessage = "PlayerId not found";
         return (resp, trades);
       }
 
-      var currentAsk = playerState.CurrentAsk;
-      var currentBid = playerState.CurrentBid;
+      var currentAsk = initiatorPlayer.CurrentAsk;
+      var currentBid = initiatorPlayer.CurrentBid;
       var newAsk = request.CurrentAsk ?? currentAsk;
       var newBid = request.CurrentBid ?? currentBid;
 
@@ -205,7 +205,7 @@ namespace MarketMakingGame.Server.Lib
 
       if (GameState.IsTradingLocked)
       {
-        var otherPlayers = GameState.PlayerStates.Where(x => x.PlayerStateId != playerState.PlayerStateId);
+        var otherPlayers = GameState.PlayerStates.Where(x => x.PlayerStateId != initiatorPlayer.PlayerStateId);
         var bestBidOthers = otherPlayers.Select(x => x.CurrentBid).Max();
         if (bestBidOthers.HasValue && newAsk <= bestBidOthers)
         {
@@ -221,8 +221,8 @@ namespace MarketMakingGame.Server.Lib
         }
       }
 
-      playerState.CurrentAsk = null;
-      playerState.CurrentBid = null;
+      initiatorPlayer.CurrentAsk = null;
+      initiatorPlayer.CurrentBid = null;
       UpdateBestBidAndAsk();
 
       while (GameState.BestCurrentBid.HasValue && newAsk <= GameState.BestCurrentBid)
@@ -236,11 +236,11 @@ namespace MarketMakingGame.Server.Lib
           Price = GameState.BestCurrentBid.Value
         };
 
-        var tradeResp = TradeInternal(tradeReq);
+        var tradeResp = TradeInternal(tradeReq, true);
         if (!tradeResp.IsSuccess)
         {
-          playerState.CurrentAsk = currentAsk;
-          playerState.CurrentBid = currentBid;
+          initiatorPlayer.CurrentAsk = currentAsk;
+          initiatorPlayer.CurrentBid = currentBid;
           resp.ErrorMessage = tradeResp.ErrorMessage;
           return (resp, trades);
         }
@@ -261,11 +261,11 @@ namespace MarketMakingGame.Server.Lib
           Price = GameState.BestCurrentAsk.Value
         };
 
-        var tradeResp = TradeInternal(tradeReq);
+        var tradeResp = TradeInternal(tradeReq, true);
         if (!tradeResp.IsSuccess)
         {
-          playerState.CurrentAsk = currentAsk;
-          playerState.CurrentBid = currentBid;
+          initiatorPlayer.CurrentAsk = currentAsk;
+          initiatorPlayer.CurrentBid = currentBid;
           resp.ErrorMessage = tradeResp.ErrorMessage;
           return (resp, trades);
         }
@@ -275,8 +275,8 @@ namespace MarketMakingGame.Server.Lib
         }
       }
 
-      playerState.CurrentAsk = newAsk;
-      playerState.CurrentBid = newBid;
+      initiatorPlayer.CurrentAsk = newAsk;
+      initiatorPlayer.CurrentBid = newBid;
       UpdateBestBidAndAsk();
 
       await _dbContext.SaveChangesAsync();
@@ -296,7 +296,7 @@ namespace MarketMakingGame.Server.Lib
       return ret;
     }
 
-    private (bool IsSuccess, string ErrorMessage, List<Trade> Trades) TradeInternal(TradeRequest request)
+    private (bool IsSuccess, string ErrorMessage, List<Trade> Trades) TradeInternal(TradeRequest request, bool ignorePlayerMustHaveQuotes = false)
     {
       if (GameState.IsFinished)
       {
@@ -314,6 +314,14 @@ namespace MarketMakingGame.Server.Lib
       if (initiatorPlayer == null)
       {
         return (false, "PlayerId not found", null);
+      }
+
+      if (!ignorePlayerMustHaveQuotes)
+      {
+        if (!(initiatorPlayer.CurrentAsk.HasValue && initiatorPlayer.CurrentBid.HasValue))
+        {
+          return (false, "You need to set quotes to trade", null);
+        }
       }
 
       List<PlayerState> targetPlayers;
@@ -365,9 +373,8 @@ namespace MarketMakingGame.Server.Lib
       }
 
       var trades = new List<Trade>();
-      var initiatorTradeQty = GameState.Game.TradeQty.Value;
       var tradePrice = request.IsBuy ? GameState.BestCurrentAsk.Value : GameState.BestCurrentBid.Value;
-      var targetTradeQty = initiatorTradeQty / targetPlayers.Count;
+      var targetTradeQty = GameState.Game.TradeQty.Value;;
       foreach (var targetPlayer in targetPlayers)
       {
         var trade = new Trade()
@@ -393,9 +400,10 @@ namespace MarketMakingGame.Server.Lib
       }
 
       var initiatorSide = request.IsBuy ? 1 : -1;
+      var initiatorTradeQty = trades.Sum(x => x.TradeQty);
       var currPosQty = initiatorPlayer.PositionQty ?? 0;
       var currPosCashflow = initiatorPlayer.PositionCashFlow ?? 0;
-      initiatorPlayer.PositionQty = currPosQty + initiatorTradeQty * initiatorSide;
+      initiatorPlayer.PositionQty = currPosQty +  initiatorTradeQty * initiatorSide;
       initiatorPlayer.PositionCashFlow = currPosCashflow + initiatorTradeQty * tradePrice * initiatorSide;
 
       return (true, null, trades);
