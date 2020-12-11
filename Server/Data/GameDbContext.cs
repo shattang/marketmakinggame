@@ -3,6 +3,8 @@ using Microsoft.EntityFrameworkCore;
 using MarketMakingGame.Shared.Models;
 using MarketMakingGame.Server.Models;
 using System;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 
 namespace MarketMakingGame.Server.Data
 {
@@ -21,13 +23,20 @@ namespace MarketMakingGame.Server.Data
     public DbSet<RoundState> RoundStates { get; set; }
 
     public DbSet<Trade> Trades { get; set; }
+    private readonly IConfiguration Configuration;
+
+    public GameDbContext(IConfiguration configuration)
+    {
+      Configuration = configuration;
+    }
 
     protected override void OnConfiguring(DbContextOptionsBuilder options)
     {
-      var homeFolder = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+      var dbSource = Configuration["GameDbContext:DataSource"];
+      Console.WriteLine("DataSource=" + dbSource);
       options
         .UseLazyLoadingProxies()
-        .UseSqlite($"Data Source={homeFolder}/data/marketmakinggame.db");
+        .UseSqlite($"Data Source={dbSource}");
     }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)

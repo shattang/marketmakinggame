@@ -9,17 +9,19 @@ using System.Linq;
 using MarketMakingGame.Server.Hubs;
 using MarketMakingGame.Server.Lib;
 using MarketMakingGame.Server.Data;
+using Microsoft.Extensions.Logging;
+using Microsoft.AspNetCore.Http;
 
 namespace MarketMakingGame.Server
 {
   public class Startup
   {
+    public IConfiguration Configuration { get; }
+
     public Startup(IConfiguration configuration)
     {
       Configuration = configuration;
     }
-
-    public IConfiguration Configuration { get; }
 
     public void ConfigureServices(IServiceCollection services)
     {
@@ -35,7 +37,14 @@ namespace MarketMakingGame.Server
       services.AddScoped<GameService>();
       services.AddSingleton<GameHubEventManager>();
       services.AddSingleton<CardRepository>();
-      services.AddHostedService<DeleteGamesScheduledService>();
+      services.AddHostedService<DeleteGameService>();
+      services.AddLogging(opt =>
+      {
+        opt.AddConsole(c =>
+        {
+          c.TimestampFormat = "[HH:mm:ss.fff] ";
+        });
+      });
     }
 
     public void Configure(IApplicationBuilder app, IWebHostEnvironment env)

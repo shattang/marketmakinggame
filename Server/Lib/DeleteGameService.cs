@@ -12,19 +12,22 @@ using System.Collections.Concurrent;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Configuration;
 
 namespace MarketMakingGame.Server.Lib
 {
-  public class DeleteGamesScheduledService : IHostedService, IDisposable
+  public class DeleteGameService : IHostedService, IDisposable
   {
     private IHost _host;
     private ILogger _logger;
+    private readonly IConfiguration _configuration;
     Timer _timer;
 
-    public DeleteGamesScheduledService(ILoggerProvider provider, IHost host)
+    public DeleteGameService(ILoggerProvider provider, IHost host, IConfiguration configuration)
     {
       _host = host;
-      _logger = provider.CreateLogger(nameof(DeleteGamesScheduledService));
+      _logger = provider.CreateLogger(nameof(DeleteGameService));
+      _configuration = configuration;
     }
 
     private void OnTimer(object state)
@@ -54,8 +57,9 @@ namespace MarketMakingGame.Server.Lib
 
     public Task StartAsync(CancellationToken cancellationToken)
     {
-      _logger.LogInformation("Started {}", nameof(DeleteGamesScheduledService));
-      _timer = new Timer(OnTimer, null, TimeSpan.FromSeconds(0), TimeSpan.FromMinutes(10));
+      _logger.LogInformation("Started {}", nameof(DeleteGameService));
+      var freqMins = _configuration.GetValue<int>("DeleteGameService:FrequencyMinutes");
+      _timer = new Timer(OnTimer, null, TimeSpan.FromSeconds(0), TimeSpan.FromMinutes(freqMins));
       return Task.CompletedTask;
     }
 
