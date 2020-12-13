@@ -11,6 +11,7 @@ using MarketMakingGame.Server.Lib;
 using MarketMakingGame.Server.Data;
 using Microsoft.Extensions.Logging;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.HttpOverrides;
 
 namespace MarketMakingGame.Server
 {
@@ -49,6 +50,11 @@ namespace MarketMakingGame.Server
 
     public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
     {
+      app.UseForwardedHeaders(new ForwardedHeadersOptions
+      {
+        ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
+      });
+      
       app.UseResponseCompression();
 
       if (env.IsDevelopment())
@@ -68,7 +74,7 @@ namespace MarketMakingGame.Server
       app.UseStaticFiles();
 
       app.UseRouting();
-
+      
       app.ApplicationServices.GetService<CardRepository>().Initialize();
 
       app.UseEndpoints(endpoints =>
