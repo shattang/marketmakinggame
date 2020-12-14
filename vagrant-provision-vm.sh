@@ -1,8 +1,7 @@
 echo "Installing commands ..."
 
-set USR=vagrant
-set GRP=vagrant
-
+USR=vagrant
+GRP=vagrant
 sudo mkdir -p /var/log/marketmakinggame
 sudo chown $USR /var/log/marketmakinggame
 sudo chgrp $GRP  /var/log/marketmakinggame
