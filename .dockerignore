@@ -1,0 +1,7 @@
+**
+
+!src/**
+!makefile
+
+**/[Bb]in/
+**/[Oo]bj/

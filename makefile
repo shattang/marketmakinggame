@@ -1,14 +1,16 @@
 release:
-	dotnet publish -c Release -o deploy/bin src/MarketMakingGame.sln
+	dotnet publish -c Release -o bin src/MarketMakingGame.sln
 stop:
 	docker stop MarketMakingGame || true
-deploy: release stop
+docker: stop
 	docker container rm MarketMakingGame || true
-	docker build -t shattangdocker/marketmakinggame deploy
-push: deploy
+	docker build -t shattangdocker/marketmakinggame .
+push: docker
 	docker push shattangdocker/marketmakinggame:latest
-run: deploy
+run: stop
 	docker run -d -p 8081:8081 --name MarketMakingGame -v /var/data/marketmakinggame:/var/data/marketmakinggame shattangdocker/marketmakinggame
+dropin:
+	docker exec -it MarketMakingGame /bin/sh
 inspect:
 	docker logs --follow MarketMakingGame
 debug:
